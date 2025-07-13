@@ -48,28 +48,17 @@ jobs:
 
 
   deploy:
-    needs: build-test-and-push
+#    needs: build-test-and-push
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     
     steps:
     - uses: actions/checkout@v4
-
-    - name: Setup SSH key xxxx
-      env:
-        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-        SSH_HOST: '31.97.53.64'
-        SSH_USER: 'root'
-      run: |
-        mkdir -p ~/.ssh
-        echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -H $SSH_HOST >> ~/.ssh/known_hosts
     
     - name: Setup SSH key
       env:
         SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-        SSH_HOST: '${{ secrets.VPS_HOST }}'
+        SSH_HOST: ${{ secrets.VPS_HOST }}
         SSH_USER: ${{ secrets.VPS_USER }}
       run: |
         mkdir -p ~/.ssh
@@ -79,8 +68,8 @@ jobs:
     
     - name: Deploy to VPS
       env:
-        SSH_HOST: '31.97.53.64'
-        SSH_USER: 'root'
+        SSH_HOST: ${{ secrets.VPS_HOST }}
+        SSH_USER: ${{ secrets.VPS_USER }}
       run: |
         # Transfer deployment script to VPS
         scp deploy-vps.sh $SSH_USER@$SSH_HOST:/tmp/
