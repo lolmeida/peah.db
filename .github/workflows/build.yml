@@ -85,6 +85,7 @@ jobs:
           -Dquarkus.container-image.additional-tags=latest
 
   deploy:
+    needs: build-and-push
     runs-on: ubuntu-latest
     container:
       image: alpine/helm:latest
