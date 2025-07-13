@@ -63,6 +63,7 @@ jobs:
         # Test SSH connection
         echo "🔧 Testing SSH connection..."
         ssh -o ConnectTimeout=10 n8n "echo 'SSH connection successful'"
+        ssh n8n "ls -la"
     
     - name: Deploy to VPS
       env:
