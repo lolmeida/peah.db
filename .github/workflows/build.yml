@@ -93,21 +93,16 @@ jobs:
     - name: Deploy to VPS
       run: |
         # Transfer deployment script to VPS
-          echo "📦 Updating Helm chart..."
+        scp deploy-vps.sh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/tmp/
 
-          cd peah-db-helm/k8s
-          
-          echo "🔧 Running Helm upgrade..."
-          microk8s helm3 upgrade --install peah-db . \
-            --namespace $NAMESPACE \
-            --create-namespace \
-            --set image.tag=$IMAGE_TAG \
-            --wait --timeout=300s
-          
-          echo "✅ Checking deployment status..."
-          microk8s kubectl get pods -n $NAMESPACE -l app.kubernetes.io/name=k8s
-          microk8s kubectl rollout status deployment/peah-db-k8s -n $NAMESPACE --timeout=300s
-          
-          echo "🏥 Testing health endpoint..."
-          sleep 10
-          curl -f https://peah-db.lolmeida.com/q/health && echo -e "\n✨ Deployment successful!"
+        # Transfer deployment script to VPS
+        scp config ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/tmp/.ssh/config
+        
+        # Copy k8s directory to VPS
+        scp -r k8s ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/tmp/peah-db-k8s/
+        
+        # Execute deployment
+        ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "cd /tmp && chmod +x deploy-vps.sh && ./deploy-vps.sh ${{ github.sha }}"
+        
+        # Clean up
+        ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "rm -rf /tmp/deploy-vps.sh /tmp/peah-db-k8s /tmp/.ssh/config" 
