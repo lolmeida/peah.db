@@ -46,7 +46,6 @@ jobs:
       run: |
         ./mvnw clean package -Dquarkus.container-image.build=true
 
-
   deploy:
 #    needs: build-test-and-push
     runs-on: ubuntu-latest
@@ -56,29 +55,40 @@ jobs:
     - uses: actions/checkout@v4
     
     - name: Setup SSH key
-      env:
-        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-        SSH_HOST: ${{ secrets.VPS_HOST }}
-        SSH_USER: ${{ secrets.VPS_USER }}
       run: |
         mkdir -p ~/.ssh
-        echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
         chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -H $SSH_HOST >> ~/.ssh/known_hosts
+        chmod 700 ~/.ssh
+        
+        # Test SSH key format
+        ssh-keygen -l -f ~/.ssh/id_rsa
+        
+        # Add host to known_hosts
+        ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+        chmod 644 ~/.ssh/known_hosts
+        
+        # Create SSH config
+        cat > ~/.ssh/config << EOF
+        Host ${{ secrets.SSH_HOST }}
+            HostName ${{ secrets.SSH_HOST }}
+            User ${{ secrets.SSH_USER }}
+            IdentityFile ~/.ssh/id_rsa
+            StrictHostKeyChecking no
+            UserKnownHostsFile ~/.ssh/known_hosts
+        EOF
+        chmod 600 ~/.ssh/config
     
     - name: Deploy to VPS
-      env:
-        SSH_HOST: ${{ secrets.VPS_HOST }}
-        SSH_USER: ${{ secrets.VPS_USER }}
       run: |
         # Transfer deployment script to VPS
-        scp deploy-vps.sh $SSH_USER@$SSH_HOST:/tmp/
+        scp deploy-vps.sh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/tmp/
         
         # Copy k8s directory to VPS
-        scp -r k8s $SSH_USER@$SSH_HOST:/tmp/peah-db-k8s/
+        scp -r k8s ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/tmp/peah-db-k8s/
         
         # Execute deployment
-        ssh $SSH_USER@$SSH_HOST "cd /tmp && chmod +x deploy-vps.sh && ./deploy-vps.sh ${{ github.sha }}"
+        ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cd /tmp && chmod +x deploy-vps.sh && ./deploy-vps.sh ${{ github.sha }}"
         
         # Clean up
-        ssh $SSH_USER@$SSH_HOST "rm -rf /tmp/deploy-vps.sh /tmp/peah-db-k8s"
+        ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "rm -rf /tmp/deploy-vps.sh /tmp/peah-db-k8s"
