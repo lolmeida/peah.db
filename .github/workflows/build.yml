@@ -35,18 +35,10 @@ jobs:
         restore-keys: ${{ runner.os }}-m2
         
     - name: Run tests
-      run: ./mvnw clean test
-
-    - name: Build and push Docker image
-      id: build
-      if: github.ref == 'refs/heads/main'
-      env:
-        CONTAINER_IMAGE_TAG: ${{ github.sha }}
-        DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-        DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
       run: |
-        ./mvnw clean package \
-          -Dquarkus.container-image.additional-tags=latest
+        ./mvnw clean test
+        ./mvnw clean package -Dquarkus.container-image.build=true
+
 
   deploy:
     needs: build-test-and-push
