@@ -1,3 +1,4 @@
+
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
@@ -6,23 +7,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **peah.db** is a Quarkus-based microservice for database management APIs using:
 - Java 21 with Quarkus 3.24.3
-- PostgreSQL with Hibernate ORM and Flyway migrations
+- MySQL (development) / PostgreSQL (production) with Hibernate ORM
+- Flyway for database migrations
 - MapStruct 1.6.3 and Lombok 1.18.30 for code generation
 - REST APIs with Jackson, OpenAPI documentation
 - Containerization via Jib, Kubernetes deployment via Helm
+- GitHub Actions for CI/CD
 
 ## Essential Commands
 
 ### Development
 ```bash
-# Run in dev mode with hot reload
+# Run in dev mode with hot reload (auto-starts MySQL via Dev Services)
 ./mvnw quarkus:dev
 
-# Run with database connection
-DB_USERNAME=postgres DB_PASSWORD=postgres DB_URL=jdbc:postgresql://localhost:5432/peahdb ./mvnw quarkus:dev
+# Run with custom database connection
+DB_USERNAME=root DB_PASSWORD=root DB_URL=jdbc:mysql://localhost:3306/peahdb ./mvnw quarkus:dev
 
 # Run with debugging on port 5005
 ./mvnw quarkus:dev -Ddebug=5005
+
+# Run with specific profile
+./mvnw quarkus:dev -Dquarkus.profile=prod
 ```
 
 ### Testing
@@ -31,7 +37,7 @@ DB_USERNAME=postgres DB_PASSWORD=postgres DB_URL=jdbc:postgresql://localhost:543
 ./mvnw test
 
 # Run specific test
-./mvnw test -Dtest=GreetingResourceTest
+./mvnw test -Dtest=UserResourceTest
 
 # Run all tests including integration tests
 ./mvnw verify -DskipITs=false
@@ -45,8 +51,14 @@ DB_USERNAME=postgres DB_PASSWORD=postgres DB_URL=jdbc:postgresql://localhost:543
 # Build JVM package
 ./mvnw clean package
 
+# Build über-jar (single executable jar)
+./mvnw package -Dquarkus.package.jar.type=uber-jar
+
 # Build native executable
 ./mvnw clean package -Dnative
+
+# Build native with container (no local GraalVM needed)
+./mvnw package -Dnative -Dquarkus.native.container-build=true
 
 # Build container image
 ./mvnw clean package -Dquarkus.container-image.build=true
@@ -55,10 +67,19 @@ DB_USERNAME=postgres DB_PASSWORD=postgres DB_URL=jdbc:postgresql://localhost:543
 ./mvnw clean package -Dquarkus.container-image.build=true -Dquarkus.container-image.push=true
 ```
 
+### Deployment
+```bash
+# Deploy to Kubernetes (uses MicroK8s)
+./deploy.sh [image-tag]
+
+# Manual Helm deployment
+helm upgrade --install peah-db k8s/ --namespace lolmeida --create-namespace
+```
+
 ### Development Endpoints
 - Application: http://localhost:8080
 - Dev UI: http://localhost:8080/q/dev/
-- Swagger/OpenAPI: http://localhost:8080/api-docs
+- Swagger/OpenAPI: http://localhost:8080/api-docs (dev only)
 - Health: http://localhost:8080/q/health
 - Metrics: http://localhost:8080/q/metrics
 
@@ -66,33 +87,39 @@ DB_USERNAME=postgres DB_PASSWORD=postgres DB_URL=jdbc:postgresql://localhost:543
 
 ### Package Structure
 ```
-com.lolmeida/
-├── resources/          # REST endpoints
-├── services/          # Business logic
-├── entities/          # JPA entities
-├── dto/              # Data transfer objects
-├── mappers/          # MapStruct mappers
-└── health/           # Health checks
+com.lolmeida.peahdb/
+├── resource/          # REST endpoints
+├── service/           # Business logic
+├── entity/            # JPA entities
+├── dto/               # Data transfer objects
+│   ├── request/       # Request DTOs
+│   ├── response/      # Response DTOs
+│   └── mapper/        # MapStruct mappers
+├── repository/        # Data access layer
+├── health/            # Health checks
+└── config/            # Configuration classes
 ```
 
 ### Key Architectural Patterns
 
-1. **REST Resources**: Use `@Path`, `@GET`, `@POST`, etc. annotations. Resources should be in the `resources` package and follow Quarkus REST patterns.
+1. **REST Resources**: Use `@Path`, `@GET`, `@POST`, etc. annotations. Resources should be in the `resource` package and follow Quarkus REST patterns.
 
 2. **Dependency Injection**: Use CDI annotations (`@ApplicationScoped`, `@RequestScoped`, `@Inject`). Prefer constructor injection.
 
-3. **Database Entities**: JPA entities go in `entities` package. Use Lombok for boilerplate reduction.
+3. **Database Entities**: JPA entities go in `entity` package. Use Lombok for boilerplate reduction. Entities can extend PanacheEntity for simplified data access.
 
-4. **DTOs and Mapping**: Use MapStruct for entity-DTO conversion. Define mappers as interfaces with `@Mapper(componentModel = "cdi")`.
+4. **DTOs and Mapping**: Use MapStruct for entity-DTO conversion. Define mappers as interfaces with `@Mapper(componentModel = "cdi")` in the `dto.mapper` package.
 
-5. **Configuration**: Use `@ConfigProperty` for injecting configuration. Database config uses environment variables (DB_USERNAME, DB_PASSWORD, DB_URL).
+5. **Configuration**: Use `@ConfigProperty` for injecting configuration. Database config differs by profile:
+   - Dev: MySQL with Dev Services or environment variables
+   - Prod: PostgreSQL with `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD`
 
 6. **Database Migrations**: Place Flyway migrations in `src/main/resources/db/migration/` following naming convention `V{version}__{description}.sql`.
 
 ### Development Workflow
 
 1. **Adding New Endpoints**:
-   - Create resource class in `com.lolmeida.resources`
+   - Create resource class in `com.lolmeida.peahdb.resource`
    - Use appropriate JAX-RS annotations
    - Inject services via CDI
    - Document with OpenAPI annotations
@@ -101,7 +128,8 @@ com.lolmeida/
    - Create migration file in `db/migration/`
    - Update corresponding entity
    - Update DTOs and mappers if needed
-   - Flyway runs migrations automatically on startup
+   - Dev profile: migrations run automatically with drop-and-create
+   - Prod profile: migrations disabled at startup (manual control)
 
 3. **Adding Dependencies**:
    - Check if Quarkus extension exists first
@@ -109,32 +137,51 @@ com.lolmeida/
    - Prefer Quarkus-specific versions when available
 
 4. **Container Deployment**:
-   - Images built via Jib (configured in application.properties)
+   - Images built via Jib to `docker.io/lolmeida/peah-db`
+   - Configure via environment variables: `CONTAINER_IMAGE_*`
    - Helm chart in `/k8s/` for Kubernetes deployment
-   - Update image references in Helm values when deploying
+   - Expects `peah-db-postgres-secret` in namespace
 
 ### Important Configuration
 
-**application.properties** key settings:
-- Database connection via environment variables
-- Flyway migrations enabled at startup
-- SQL logging enabled for development
-- CORS enabled (restrict in production)
-- Container image uses Jib builder
-- OpenAPI/Swagger auto-generated from annotations
+**Profile-Specific Settings**:
+- **Development** (`application-dev.properties`):
+  - MySQL with Quarkus Dev Services
+  - Hibernate drop-and-create mode
+  - CORS enabled for localhost:3000/8080
+  - Flyway baseline on migrate
+  
+- **Production** (`application-prod.properties`):
+  - PostgreSQL with environment variables
+  - Flyway migrations disabled at startup
+  - File logging to `logs/application.log`
+  - Swagger UI disabled
+
+**Environment Variables**:
+- `APPLICATION_NAME`: Override application name
+- Database: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD`
+- Container: `CONTAINER_IMAGE_BUILD`, `CONTAINER_IMAGE_PUSH`, etc.
 
 ### Testing Strategy
 
 - Unit tests: Test individual components with mocks
-- Integration tests: Use `@QuarkusIntegrationTest` for native tests
+- Integration tests: Use `@QuarkusIntegrationTest` with Testcontainers for MySQL
 - REST tests: Use REST Assured for API testing
-- Test database: Configure separate test profile in `application-test.properties`
+- Native tests: Run with `-Dnative` flag
 
 ## Common Tasks
 
 ### Local Database Setup
 ```bash
-# PostgreSQL via Docker
+# MySQL via Docker (for manual testing)
+docker run -d \
+  --name peahdb-mysql \
+  -e MYSQL_ROOT_PASSWORD=root \
+  -e MYSQL_DATABASE=peahdb \
+  -p 3306:3306 \
+  mysql:8
+
+# PostgreSQL via Docker (for production-like testing)
 docker run -d \
   --name peahdb-postgres \
   -e POSTGRES_USER=postgres \
@@ -152,4 +199,10 @@ docker run -d \
 ### Performance Monitoring
 - Micrometer metrics available at `/q/metrics`
 - Health checks at `/q/health/live` and `/q/health/ready`
-- Custom metrics can be added via Micrometer API
+- Prometheus metrics endpoint enabled
+- OpenTelemetry bridge configured
+
+### CI/CD Workflow
+- GitHub Actions automatically builds and pushes Docker images on main branch
+- Manual deployment workflow available for VPS deployment
+- Deployment target: MicroK8s cluster on VPS (31.97.53.64)

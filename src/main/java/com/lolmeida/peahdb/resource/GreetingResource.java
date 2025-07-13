@@ -1,4 +1,4 @@
-package com.lolmeida;
+package com.lolmeida.peahdb.resource;
 
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
@@ -13,4 +13,4 @@ public class GreetingResource {
     public String hello() {
         return "Hello from Quarkus REST";
     }
-}
+} 

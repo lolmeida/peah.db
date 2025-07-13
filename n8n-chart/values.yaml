@@ -1,0 +1,89 @@
+# Default values for n8n chart
+global:
+  timezone: "America/Sao_Paulo"
+
+n8n:
+  image:
+    repository: n8nio/n8n
+    tag: "latest"
+    pullPolicy: IfNotPresent
+
+  replicaCount: 1
+
+  auth:
+    enabled: true
+    username: "admin"
+    password: "changeme123"
+
+  config:
+    domain: "m8n.lolmeida.com"
+    protocol: "https"
+    webhookUrl: "https://m8n.lolmeida.com/"
+    editorBaseUrl: "https://m8n.lolmeida.com/"
+
+  service:
+    type: ClusterIP
+    port: 5678
+
+  resources:
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+
+  persistence:
+    enabled: true
+    accessMode: ReadWriteOnce
+    size: 5Gi
+    storageClass: ""
+
+redis:
+  image:
+    repository: redis
+    tag: "7-alpine"
+    pullPolicy: IfNotPresent
+
+  replicaCount: 1
+
+  auth:
+    password: "changeme123"
+
+  service:
+    type: ClusterIP
+    port: 6379
+
+  resources:
+    limits:
+      memory: "256Mi"
+      cpu: "250m"
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+
+  persistence:
+    enabled: true
+    accessMode: ReadWriteOnce
+    size: 2Gi
+    storageClass: ""
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  hosts:
+    - host: m8n.lolmeida.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: n8n-tls
+      hosts:
+        - m8n.lolmeida.com
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
