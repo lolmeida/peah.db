@@ -69,8 +69,8 @@ jobs:
     - name: Setup SSH key
       env:
         SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-        SSH_HOST: ${{ secrets.SSH_HOST }}
-        SSH_USER: ${{ secrets.SSH_USER }}
+        SSH_HOST: '${{ secrets.VPS_HOST }}'
+        SSH_USER: ${{ secrets.VPS_USER }}
       run: |
         mkdir -p ~/.ssh
         echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
@@ -79,8 +79,8 @@ jobs:
     
     - name: Deploy to VPS
       env:
-        SSH_HOST: ${{ secrets.SSH_HOST }}
-        SSH_USER: ${{ secrets.SSH_USER }}
+        SSH_HOST: '31.97.53.64'
+        SSH_USER: 'root'
       run: |
         # Transfer deployment script to VPS
         scp deploy-vps.sh $SSH_USER@$SSH_HOST:/tmp/
