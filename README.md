@@ -78,3 +78,4 @@ Monitor your application's health using SmallRye Health
 [Related guide section...](https://quarkus.io/guides/smallrye-health)
 # Test trigger for CI/CD
 # Test new Docker Hub token
+# Test deploy with fixed SSH key
