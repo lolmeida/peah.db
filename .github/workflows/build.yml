@@ -37,6 +37,9 @@ jobs:
     - name: Run tests
       run: |
         ./mvnw clean test
+
+    - name: Build and push Docker image
+      run: |
         ./mvnw clean package -Dquarkus.container-image.build=true
 
 
