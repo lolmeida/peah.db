@@ -30,16 +30,22 @@ jobs:
     - name: Setup SSH key and config
       run: |
         mkdir -p ~/.ssh
+        # Save SSH private key (using quotes to preserve format)
         echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
         chmod 600 ~/.ssh/id_ed25519
         chmod 700 ~/.ssh
+        
+        # Debug: Check key format
+        echo "🔍 SSH key info:"
+        file ~/.ssh/id_ed25519 || echo "Unable to determine file type"
+        head -1 ~/.ssh/id_ed25519
         
         # Add host to known_hosts
         ssh-keyscan -H 31.97.53.64 >> ~/.ssh/known_hosts
         chmod 644 ~/.ssh/known_hosts
         
-        # Create SSH config similar to local config
-        cat > ~/.ssh/config << EOF
+        # Create SSH config
+        cat > ~/.ssh/config << 'EOF'
         Host n8n
             HostName 31.97.53.64
             User root
@@ -53,6 +59,10 @@ jobs:
         chmod 600 ~/.ssh/config
         
         echo "✅ SSH key and config setup completed"
+        
+        # Test SSH connection
+        echo "🔧 Testing SSH connection..."
+        ssh -o ConnectTimeout=10 n8n "echo 'SSH connection successful'"
     
     - name: Deploy to VPS
       env:
@@ -60,26 +70,35 @@ jobs:
       run: |
         echo "🚀 Deploying peah.db with image tag: ${IMAGE_TAG}"
         
-        # Execute deployment on VPS (similar to deploy.sh)
-        ssh n8n << EOF
-          echo "📦 Updating Helm chart..."
-          cd /tmp
-          rm -rf peah-db-helm
-          git clone https://github.com/lolmeida/peah.db.git peah-db-helm
-          cd peah-db-helm/k8s
-          
-          echo "🔧 Running Helm upgrade..."
-          microk8s helm3 upgrade --install peah-db . \
-            --namespace ${{ env.NAMESPACE }} \
-            --create-namespace \
-            --set image.tag=${IMAGE_TAG} \
-            --wait --timeout=300s
-          
-          echo "✅ Checking deployment status..."
-          microk8s kubectl get pods -n ${{ env.NAMESPACE }} -l app.kubernetes.io/name=k8s
-          microk8s kubectl rollout status deployment/peah-db-k8s -n ${{ env.NAMESPACE }} --timeout=300s
-          
-          echo "🏥 Testing health endpoint..."
-          sleep 10
-          curl -f https://peah-db.lolmeida.com/q/health && echo -e "\n✨ Deployment successful!"
-        EOF 
+        # Create deployment script with IMAGE_TAG substituted
+        cat > /tmp/deploy_script.sh << EOF
+        #!/bin/bash
+        set -e
+        
+        echo "📦 Updating Helm chart..."
+        cd /tmp
+        rm -rf peah-db-helm
+        git clone https://github.com/lolmeida/peah.db.git peah-db-helm
+        cd peah-db-helm/k8s
+        
+        echo "🔧 Running Helm upgrade..."
+        microk8s helm3 upgrade --install peah-db . \
+          --namespace lolmeida \
+          --create-namespace \
+          --set image.tag=${IMAGE_TAG} \
+          --wait --timeout=300s
+        
+        echo "✅ Checking deployment status..."
+        microk8s kubectl get pods -n lolmeida -l app.kubernetes.io/name=k8s
+        microk8s kubectl rollout status deployment/peah-db-k8s -n lolmeida --timeout=300s
+        
+        echo "🏥 Testing health endpoint..."
+        sleep 10
+        curl -f https://peah-db.lolmeida.com/q/health && echo -e "\n✨ Deployment successful!"
+        EOF
+        
+        chmod +x /tmp/deploy_script.sh
+        
+        # Transfer and execute deployment script
+        scp /tmp/deploy_script.sh n8n:/tmp/
+        ssh n8n "chmod +x /tmp/deploy_script.sh && /tmp/deploy_script.sh && rm /tmp/deploy_script.sh" 
