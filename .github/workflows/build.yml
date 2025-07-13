@@ -83,3 +83,21 @@ jobs:
           -Dquarkus.container-image.push=true \
           -Dquarkus.container-image.tag=${{ github.sha }} \
           -Dquarkus.container-image.additional-tags=latest
+
+  deploy:
+    runs-on: ubuntu-latest
+    container:
+      image: alpine/helm:latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Deploy to Kubernetes
+      env:
+        KUBECONFIG_DATA: ${{ secrets.KUBECONFIG }}
+      run: |
+        echo "$KUBECONFIG_DATA" | base64 -d > /tmp/kubeconfig
+        export KUBECONFIG=/tmp/kubeconfig
+        helm upgrade --install peah-db ./k8s \
+          --namespace lolmeida \
+          --set image.tag=${{ github.event.inputs.image_tag }}
