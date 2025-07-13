@@ -11,9 +11,22 @@ Configure os seguintes secrets no repositório GitHub (Settings > Secrets and va
 - `DOCKER_PASSWORD`: sua senha ou token do Docker Hub
 
 ### SSH e VPS
-- `SSH_PRIVATE_KEY`: chave SSH privada para acesso à VPS
+- `SSH_PRIVATE_KEY`: chave SSH privada para acesso à VPS (formato PEM, incluindo headers -----BEGIN/END-----)
 - `VPS_HOST`: IP da VPS (31.97.53.64)
 - `VPS_USER`: usuário SSH (provavelmente 'root')
+
+**Importante**: A chave SSH deve incluir os headers completos:
+```
+-----BEGIN RSA PRIVATE KEY-----
+[conteúdo da chave]
+-----END RSA PRIVATE KEY-----
+```
+ou
+```
+-----BEGIN OPENSSH PRIVATE KEY-----
+[conteúdo da chave]
+-----END OPENSSH PRIVATE KEY-----
+```
 
 ### Kubernetes
 - `KUBECONFIG`: configuração do kubectl em base64
