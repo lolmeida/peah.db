@@ -74,13 +74,19 @@ jobs:
           type=sha,prefix={{branch}}-
           type=raw,value=latest,enable={{is_default_branch}}
 
-    - name: Build and push Docker image
+    - name: Build Docker image
       id: build
       run: |
         mvn clean package \
-          -Dquarkus.container-image.push=true \
-          -Dquarkus.container-image.tag=${{ github.sha }} \
-          -Dquarkus.container-image.additional-tags=latest
+          -Dquarkus.container-image.build=true \
+          -Dquarkus.container-image.push=false \
+          -Dquarkus.container-image.tag=${{ github.sha }}
+          
+    - name: Tag and push Docker image
+      run: |
+        docker tag lolmeida/peah-db:${{ github.sha }} lolmeida/peah-db:latest
+        docker push lolmeida/peah-db:${{ github.sha }}
+        docker push lolmeida/peah-db:latest
 
   deploy:
     needs: build-and-push
