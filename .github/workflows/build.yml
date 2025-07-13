@@ -12,31 +12,8 @@ env:
   IMAGE_NAME: lolmeida/peah-db
 
 jobs:
-  test:
+  build-test-and-push:
     runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up JDK 21
-      uses: actions/setup-java@v4
-      with:
-        java-version: '21'
-        distribution: 'temurin'
-        
-    - name: Cache Maven packages
-      uses: actions/cache@v4
-      with:
-        path: ~/.m2
-        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-        restore-keys: ${{ runner.os }}-m2
-        
-    - name: Run tests
-      run: mvn clean test
-
-  build-and-push:
-    needs: test
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
     outputs:
       image-digest: ${{ steps.build.outputs.digest }}
       image-tag: ${{ steps.meta.outputs.tags }}
@@ -56,49 +33,53 @@ jobs:
         path: ~/.m2
         key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
         restore-keys: ${{ runner.os }}-m2
-
-    - name: Log in to Docker Hub
-      uses: docker/login-action@v3
-      with:
-        registry: ${{ env.REGISTRY }}
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
-
-    - name: Extract metadata
-      id: meta
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ env.IMAGE_NAME }}
-        tags: |
-          type=ref,event=branch
-          type=ref,event=pr
-          type=sha,prefix={{branch}}-
-          type=raw,value=latest,enable={{is_default_branch}}
+        
+    - name: Run tests
+      run: ./mvnw clean test
 
     - name: Build and push Docker image
       id: build
+      if: github.ref == 'refs/heads/main'
+      env:
+        CONTAINER_IMAGE_TAG: ${{ github.sha }}
+        DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+        DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
       run: |
-        mvn clean package \
-          -Dquarkus.container-image.build=true \
-          -Dquarkus.container-image.push=true \
-          -Dquarkus.container-image.tag=${{ github.sha }} \
+        ./mvnw clean package \
           -Dquarkus.container-image.additional-tags=latest
 
   deploy:
-    needs: build-and-push
+    needs: build-test-and-push
     runs-on: ubuntu-latest
-    container:
-      image: alpine/helm:latest
+    if: github.ref == 'refs/heads/main'
     
     steps:
     - uses: actions/checkout@v4
     
-    - name: Deploy to Kubernetes
+    - name: Setup SSH key
       env:
-        KUBECONFIG_DATA: ${{ secrets.KUBECONFIG }}
+        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        SSH_HOST: ${{ secrets.SSH_HOST }}
+        SSH_USER: ${{ secrets.SSH_USER }}
       run: |
-        echo "$KUBECONFIG_DATA" | base64 -d > /tmp/kubeconfig
-        export KUBECONFIG=/tmp/kubeconfig
-        helm upgrade --install peah-db ./k8s \
-          --namespace lolmeida \
-          --set image.tag=${{ github.event.inputs.image_tag }}
+        mkdir -p ~/.ssh
+        echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H $SSH_HOST >> ~/.ssh/known_hosts
+    
+    - name: Deploy to VPS
+      env:
+        SSH_HOST: ${{ secrets.SSH_HOST }}
+        SSH_USER: ${{ secrets.SSH_USER }}
+      run: |
+        # Transfer deployment script to VPS
+        scp deploy-vps.sh $SSH_USER@$SSH_HOST:/tmp/
+        
+        # Copy k8s directory to VPS
+        scp -r k8s $SSH_USER@$SSH_HOST:/tmp/peah-db-k8s/
+        
+        # Execute deployment
+        ssh $SSH_USER@$SSH_HOST "cd /tmp && chmod +x deploy-vps.sh && ./deploy-vps.sh ${{ github.sha }}"
+        
+        # Clean up
+        ssh $SSH_USER@$SSH_HOST "rm -rf /tmp/deploy-vps.sh /tmp/peah-db-k8s"
