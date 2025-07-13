@@ -108,12 +108,26 @@ jobs:
         chmod 600 ~/.ssh/id_rsa
         ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
         
+        # Test if we can connect to the VPS
+        echo "Testing basic SSH connectivity..."
+        ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "uname -a" || exit 1
+        
     - name: Setup kubeconfig via SSH tunnel
       run: |
+        # Check if microk8s is running on VPS
+        ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "microk8s status --wait-ready"
+        
+        # Start SSH tunnel for k8s API
         ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -L 16443:localhost:16443 -N -f ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}
+        sleep 5
+        
+        # Setup kubeconfig
         mkdir -p ~/.kube
         echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config
         kubectl config set-cluster microk8s-cluster --server=https://localhost:16443
+        
+        # Test connection
+        kubectl cluster-info
         
     - name: Wait for image to be available
       run: |
@@ -122,11 +136,27 @@ jobs:
         
     - name: Deploy to Kubernetes
       run: |
+        # First, copy the Helm chart to the VPS
+        echo "Copying Helm chart to VPS..."
+        scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -r ./k8s ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/tmp/
+        
+        # Try local deployment first
+        echo "Attempting deployment via kubectl tunnel..."
         helm upgrade --install peah-db ./k8s \
           --namespace lolmeida \
           --create-namespace \
           --set image.tag=${{ github.sha }} \
-          --wait --timeout=300s
+          --wait --timeout=300s || {
+          echo "Tunnel deployment failed, trying direct deployment on VPS..."
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
+            cd /tmp/k8s && \
+            microk8s helm3 upgrade --install peah-db . \
+              --namespace lolmeida \
+              --create-namespace \
+              --set image.tag=${{ github.sha }} \
+              --wait --timeout=300s
+          "
+        }
           
     - name: Verify deployment
       run: |
