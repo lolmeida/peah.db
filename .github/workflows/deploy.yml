@@ -101,19 +101,16 @@ jobs:
       with:
         version: 'v3.15.4'
         
-    - name: Setup SSH key
-      uses: webfactory/ssh-agent@v0.9.0
-      with:
-        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-        
-    - name: Add VPS to known hosts
+    - name: Setup SSH connection
       run: |
         mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
         ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
         
     - name: Setup kubeconfig via SSH tunnel
       run: |
-        ssh -o StrictHostKeyChecking=no -L 16443:localhost:16443 -N -f ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}
+        ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -L 16443:localhost:16443 -N -f ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}
         mkdir -p ~/.kube
         echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config
         kubectl config set-cluster microk8s-cluster --server=https://localhost:16443
