@@ -47,12 +47,16 @@ jobs:
         ./mvnw clean package -Dquarkus.container-image.build=true
 
   deploy:
-    needs: build-test-and-push
+##   needs: build-test-and-push
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     
     steps:
     - uses: actions/checkout@v4
+
+    - name: Docker login
+      run: |
+        docker login ${{ env.REGISTRY }} -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
     
     - name: Validate SSH secrets
       run: |
