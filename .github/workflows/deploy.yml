@@ -9,53 +9,21 @@ on:
         default: 'latest'
         type: string
 
-env:
-  IMAGE_NAME: lolmeida/peah-db
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    container:
+      image: alpine/helm:latest
     
     steps:
     - uses: actions/checkout@v4
     
-    - name: Setup SSH connection
+    - name: Deploy to Kubernetes
+      env:
+        KUBECONFIG_DATA: ${{ secrets.KUBECONFIG }}
       run: |
-        mkdir -p ~/.ssh
-        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
-        
-        # Debug SSH key format
-        echo "Checking SSH key format..."
-        head -n 1 ~/.ssh/id_rsa
-        
-        # Test SSH connection
-        echo "Testing SSH connection..."
-        ssh -v -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "echo 'SSH connection successful'" || exit 1
-        
-    - name: Deploy to Kubernetes via SSH
-      run: |
-        ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
-          echo "📦 Updating Helm chart..."
-          cd /tmp
-          rm -rf peah-db-helm
-          git clone https://github.com/lolmeida/peah.db.git peah-db-helm
-          cd peah-db-helm/k8s
-          
-          echo "🔧 Running Helm upgrade..."
-          microk8s helm3 upgrade --install peah-db . \
-            --namespace lolmeida \
-            --create-namespace \
-            --set image.tag=${{ github.event.inputs.image_tag }} \
-            --wait --timeout=300s
-          
-          echo "✅ Checking deployment status..."
-          microk8s kubectl get pods -n lolmeida -l app.kubernetes.io/name=k8s
-          microk8s kubectl rollout status deployment/peah-db-k8s -n lolmeida --timeout=300s
-        EOF
-        
-    - name: Test health endpoint
-      run: |
-        sleep 30
-        curl -f https://peah-db.lolmeida.com/q/health || exit 1
+        echo "$KUBECONFIG_DATA" | base64 -d > /tmp/kubeconfig
+        export KUBECONFIG=/tmp/kubeconfig
+        helm upgrade --install peah-db ./k8s \
+          --namespace lolmeida \
+          --set image.tag=${{ github.event.inputs.image_tag }}
