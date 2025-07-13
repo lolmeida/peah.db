@@ -79,3 +79,4 @@ Monitor your application's health using SmallRye Health
 # Test trigger for CI/CD
 # Test new Docker Hub token
 # Test deploy with fixed SSH key
+# Test Docker Hub token with Read/Write/Delete permissions
