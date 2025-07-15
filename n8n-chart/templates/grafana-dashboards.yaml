@@ -1,0 +1,450 @@
+{{- if .Values.monitoring.grafana.enabled -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "n8n.fullname" . }}-grafana-dashboards
+  labels:
+    {{- include "n8n.labels" . | nindent 4 }}
+    app.kubernetes.io/component: grafana
+    grafana_dashboard: "1"
+data:
+  n8n-overview.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "N8N Overview",
+        "tags": ["n8n", "automation"],
+        "style": "dark",
+        "timezone": "browser",
+        "refresh": "30s",
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "panels": [
+          {
+            "id": 1,
+            "title": "N8N Status",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "up{job=\"n8n\"}",
+                "legendFormat": "N8N Up"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "thresholds": {
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": 0
+                    },
+                    {
+                      "color": "green",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            },
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "id": 2,
+            "title": "Response Time",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "prometheus_http_request_duration_seconds{job=\"n8n\"}",
+                "legendFormat": "Response Time"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 12,
+              "y": 0
+            }
+          }
+        ]
+      }
+    }
+  
+  postgresql-dashboard.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "PostgreSQL Monitoring",
+        "tags": ["postgresql", "database"],
+        "style": "dark",
+        "timezone": "browser",
+        "refresh": "30s",
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "panels": [
+          {
+            "id": 1,
+            "title": "PostgreSQL Status",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "up{job=\"postgresql\"}",
+                "legendFormat": "PostgreSQL Up"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "thresholds": {
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": 0
+                    },
+                    {
+                      "color": "green",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            },
+            "gridPos": {
+              "h": 8,
+              "w": 8,
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "id": 2,
+            "title": "Database Connections",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "pg_stat_database_numbackends{job=\"postgresql\"}",
+                "legendFormat": "Active Connections"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 8,
+              "x": 8,
+              "y": 0
+            }
+          },
+          {
+            "id": 3,
+            "title": "Database Size",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "pg_database_size_bytes{job=\"postgresql\"}",
+                "legendFormat": "Database Size"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 8,
+              "x": 16,
+              "y": 0
+            }
+          }
+        ]
+      }
+    }
+  
+  mysql-dashboard.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "MySQL Monitoring",
+        "tags": ["mysql", "database"],
+        "style": "dark",
+        "timezone": "browser",
+        "refresh": "30s",
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "panels": [
+          {
+            "id": 1,
+            "title": "MySQL Status",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "up{job=\"mysql\"}",
+                "legendFormat": "MySQL Up"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "thresholds": {
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": 0
+                    },
+                    {
+                      "color": "green",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            },
+            "gridPos": {
+              "h": 8,
+              "w": 8,
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "id": 2,
+            "title": "MySQL Connections",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "mysql_global_status_threads_connected{job=\"mysql\"}",
+                "legendFormat": "Active Connections"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 8,
+              "x": 8,
+              "y": 0
+            }
+          },
+          {
+            "id": 3,
+            "title": "Query Rate",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(mysql_global_status_queries{job=\"mysql\"}[5m])",
+                "legendFormat": "Queries/sec"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 8,
+              "x": 16,
+              "y": 0
+            }
+          }
+        ]
+      }
+    }
+  
+  redis-dashboard.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Redis Monitoring",
+        "tags": ["redis", "cache"],
+        "style": "dark",
+        "timezone": "browser",
+        "refresh": "30s",
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "panels": [
+          {
+            "id": 1,
+            "title": "Redis Status",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "up{job=\"redis\"}",
+                "legendFormat": "Redis Up"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "thresholds": {
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": 0
+                    },
+                    {
+                      "color": "green",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            },
+            "gridPos": {
+              "h": 8,
+              "w": 6,
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "id": 2,
+            "title": "Memory Usage",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "redis_memory_used_bytes{job=\"redis\"}",
+                "legendFormat": "Memory Used"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 6,
+              "x": 6,
+              "y": 0
+            }
+          },
+          {
+            "id": 3,
+            "title": "Hit Rate",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(redis_keyspace_hits_total{job=\"redis\"}[5m]) / (rate(redis_keyspace_hits_total{job=\"redis\"}[5m]) + rate(redis_keyspace_misses_total{job=\"redis\"}[5m]))",
+                "legendFormat": "Hit Rate"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 6,
+              "x": 12,
+              "y": 0
+            }
+          },
+          {
+            "id": 4,
+            "title": "Commands/sec",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(redis_commands_processed_total{job=\"redis\"}[5m])",
+                "legendFormat": "Commands/sec"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 6,
+              "x": 18,
+              "y": 0
+            }
+          }
+        ]
+      }
+    }
+  
+  kubernetes-dashboard.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Kubernetes Cluster",
+        "tags": ["kubernetes", "cluster"],
+        "style": "dark",
+        "timezone": "browser",
+        "refresh": "30s",
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "panels": [
+          {
+            "id": 1,
+            "title": "Pod Status",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "kube_pod_status_phase{phase=\"Running\"}",
+                "legendFormat": "Running Pods"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "thresholds": {
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": 0
+                    },
+                    {
+                      "color": "green",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            },
+            "gridPos": {
+              "h": 8,
+              "w": 8,
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "id": 2,
+            "title": "CPU Usage",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(container_cpu_usage_seconds_total{container!=\"POD\",container!=\"\"}[5m])",
+                "legendFormat": "CPU Usage"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 8,
+              "x": 8,
+              "y": 0
+            }
+          },
+          {
+            "id": 3,
+            "title": "Memory Usage",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "container_memory_usage_bytes{container!=\"POD\",container!=\"\"}",
+                "legendFormat": "Memory Usage"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 8,
+              "x": 16,
+              "y": 0
+            }
+          }
+        ]
+      }
+    }
+{{- end }} 

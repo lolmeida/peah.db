@@ -1,0 +1,50 @@
+{{- if .Values.monitoring.ingress.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "n8n.fullname" . }}-monitoring-ingress
+  labels:
+    {{- include "n8n.labels" . | nindent 4 }}
+    app.kubernetes.io/component: monitoring
+  {{- with .Values.monitoring.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.monitoring.ingress.className }}
+  ingressClassName: {{ .Values.monitoring.ingress.className }}
+  {{- end }}
+  {{- if .Values.monitoring.ingress.tls }}
+  tls:
+    {{- range .Values.monitoring.ingress.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      secretName: {{ .secretName }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range .Values.monitoring.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            {{- if .pathType }}
+            pathType: {{ .pathType }}
+            {{- end }}
+            backend:
+              service:
+                {{- if eq .service "grafana" }}
+                name: {{ include "n8n.fullname" $ }}-grafana
+                port:
+                  number: {{ $.Values.monitoring.grafana.service.port }}
+                {{- else if eq .service "prometheus" }}
+                name: {{ include "n8n.fullname" $ }}-prometheus
+                port:
+                  number: {{ $.Values.monitoring.prometheus.service.port }}
+                {{- end }}
+          {{- end }}
+    {{- end }}
+{{- end }} 

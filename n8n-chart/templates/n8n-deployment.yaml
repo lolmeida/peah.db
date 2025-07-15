@@ -50,6 +50,50 @@ spec:
               value: {{ .Values.n8n.config.protocol | quote }}
             - name: N8N_HOST
               value: {{ .Values.n8n.config.domain | quote }}
+            {{- if .Values.postgresql.enabled }}
+            - name: DB_TYPE
+              value: "postgresdb"
+            - name: DB_POSTGRESDB_HOST
+              value: {{ include "n8n.fullname" . }}-postgres
+            - name: DB_POSTGRESDB_PORT
+              value: "5432"
+            - name: DB_POSTGRESDB_DATABASE
+              value: {{ .Values.postgresql.auth.database | quote }}
+            - name: DB_POSTGRESDB_USER
+              value: {{ .Values.postgresql.auth.username | quote }}
+            - name: DB_POSTGRESDB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "n8n.fullname" . }}-secret
+                  key: postgres-password
+            {{- else if .Values.mysql.enabled }}
+            - name: DB_TYPE
+              value: "mysqldb"
+            - name: DB_MYSQLDB_HOST
+              value: {{ include "n8n.fullname" . }}-mysql
+            - name: DB_MYSQLDB_PORT
+              value: "3306"
+            - name: DB_MYSQLDB_DATABASE
+              value: {{ .Values.mysql.auth.database | quote }}
+            - name: DB_MYSQLDB_USER
+              value: {{ .Values.mysql.auth.username | quote }}
+            - name: DB_MYSQLDB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "n8n.fullname" . }}-secret
+                  key: mysql-password
+            {{- end }}
+            {{- if .Values.redis.enabled }}
+            - name: QUEUE_BULL_REDIS_HOST
+              value: {{ include "n8n.fullname" . }}-redis
+            - name: QUEUE_BULL_REDIS_PORT
+              value: "6379"
+            - name: QUEUE_BULL_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "n8n.fullname" . }}-secret
+                  key: redis-password
+            {{- end }}
           resources:
             {{- toYaml .Values.n8n.resources | nindent 12 }}
           volumeMounts:

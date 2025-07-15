@@ -1,0 +1,251 @@
+{{- if .Values.monitoring.grafana.enabled -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "n8n.fullname" . }}-grafana-config
+  labels:
+    {{- include "n8n.labels" . | nindent 4 }}
+    app.kubernetes.io/component: grafana
+data:
+  grafana.ini: |
+    [server]
+    root_url = {{ .Values.monitoring.grafana.config.rootUrl }}
+    
+    [security]
+    admin_user = {{ .Values.monitoring.grafana.auth.adminUser }}
+    admin_password = {{ .Values.monitoring.grafana.auth.adminPassword }}
+    
+    [analytics]
+    reporting_enabled = false
+    check_for_updates = false
+    
+    [log]
+    mode = console
+    level = info
+    
+    [paths]
+    data = /var/lib/grafana
+    logs = /var/log/grafana
+    plugins = /var/lib/grafana/plugins
+    provisioning = /etc/grafana/provisioning
+  
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://{{ include "n8n.fullname" . }}-prometheus:{{ .Values.monitoring.prometheus.service.port }}
+        isDefault: true
+        editable: true
+  
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: 'default'
+        orgId: 1
+        folder: 'N8N Stack'
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 30
+        allowUiUpdates: true
+        options:
+          path: /var/lib/grafana/dashboards
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "n8n.fullname" . }}-grafana-dashboards
+  labels:
+    {{- include "n8n.labels" . | nindent 4 }}
+    app.kubernetes.io/component: grafana
+data:
+  n8n-overview.json: |
+    {
+      "dashboard": {
+        "title": "N8N Overview",
+        "panels": [
+          {
+            "title": "N8N Status",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "up{job=\"n8n\"}",
+                "legendFormat": "N8N Up"
+              }
+            ]
+          },
+          {
+            "title": "Workflow Executions",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(n8n_workflow_executions_total[5m])",
+                "legendFormat": "Executions/sec"
+              }
+            ]
+          },
+          {
+            "title": "Database Connections",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "up{job=\"postgres\"}",
+                "legendFormat": "PostgreSQL"
+              },
+              {
+                "expr": "up{job=\"mysql\"}",
+                "legendFormat": "MySQL"
+              },
+              {
+                "expr": "up{job=\"redis\"}",
+                "legendFormat": "Redis"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  
+  kubernetes-overview.json: |
+    {
+      "dashboard": {
+        "title": "Kubernetes Overview",
+        "panels": [
+          {
+            "title": "Pod Status",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "kube_pod_status_phase{phase=\"Running\"}",
+                "legendFormat": "Running Pods"
+              }
+            ]
+          },
+          {
+            "title": "CPU Usage",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(container_cpu_usage_seconds_total[5m])",
+                "legendFormat": "CPU Usage"
+              }
+            ]
+          },
+          {
+            "title": "Memory Usage",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "container_memory_usage_bytes",
+                "legendFormat": "Memory Usage"
+              }
+            ]
+          }
+        ]
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "n8n.fullname" . }}-grafana
+  labels:
+    {{- include "n8n.labels" . | nindent 4 }}
+    app.kubernetes.io/component: grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "n8n.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: grafana
+  template:
+    metadata:
+      labels:
+        {{- include "n8n.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: grafana
+    spec:
+      containers:
+        - name: grafana
+          image: "{{ .Values.monitoring.grafana.image.repository }}:{{ .Values.monitoring.grafana.image.tag }}"
+          imagePullPolicy: {{ .Values.monitoring.grafana.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: TZ
+              value: {{ .Values.global.timezone | quote }}
+            - name: GF_SECURITY_ADMIN_USER
+              value: {{ .Values.monitoring.grafana.auth.adminUser | quote }}
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "n8n.fullname" . }}-secret
+                  key: grafana-admin-password
+          resources:
+            {{- toYaml .Values.monitoring.grafana.resources | nindent 12 }}
+          volumeMounts:
+            - name: grafana-config
+              mountPath: /etc/grafana/grafana.ini
+              subPath: grafana.ini
+            - name: grafana-config
+              mountPath: /etc/grafana/provisioning/datasources/datasources.yaml
+              subPath: datasources.yaml
+            - name: grafana-config
+              mountPath: /etc/grafana/provisioning/dashboards/dashboards.yaml
+              subPath: dashboards.yaml
+            - name: grafana-dashboards
+              mountPath: /var/lib/grafana/dashboards
+            - name: grafana-data
+              mountPath: /var/lib/grafana
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 5
+      volumes:
+        - name: grafana-config
+          configMap:
+            name: {{ include "n8n.fullname" . }}-grafana-config
+        - name: grafana-dashboards
+          configMap:
+            name: {{ include "n8n.fullname" . }}-grafana-dashboards
+        - name: grafana-data
+          {{- if .Values.monitoring.grafana.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "n8n.fullname" . }}-grafana-pvc
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+---
+{{- if .Values.monitoring.grafana.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "n8n.fullname" . }}-grafana-pvc
+  labels:
+    {{- include "n8n.labels" . | nindent 4 }}
+    app.kubernetes.io/component: grafana
+spec:
+  accessModes:
+    - {{ .Values.monitoring.grafana.persistence.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.monitoring.grafana.persistence.size }}
+  {{- if .Values.monitoring.grafana.persistence.storageClass }}
+  {{- if (eq "-" .Values.monitoring.grafana.persistence.storageClass) }}
+  storageClassName: ""
+  {{- else }}
+  storageClassName: {{ .Values.monitoring.grafana.persistence.storageClass | quote }}
+  {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }} 
