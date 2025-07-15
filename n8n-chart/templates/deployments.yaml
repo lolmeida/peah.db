@@ -1,0 +1,191 @@
+{{- $deployments := list -}}
+
+{{- if .Values.mysql.enabled -}}
+{{- $deployments = append $deployments (dict
+  "name" "mysql"
+  "component" "mysql"
+  "enabled" .Values.mysql.enabled
+  "replicaCount" .Values.mysql.replicaCount
+  "image" .Values.mysql.image
+  "port" (dict "name" "mysql" "containerPort" 3306)
+  "resources" .Values.mysql.resources
+  "persistence" .Values.mysql.persistence
+  "volumeMount" (dict "name" "mysql-data" "mountPath" "/var/lib/mysql")
+  "env" (list
+    (dict "name" "TZ" "value" .Values.global.timezone)
+    (dict "name" "MYSQL_DATABASE" "value" .Values.mysql.auth.database)
+    (dict "name" "MYSQL_USER" "value" .Values.mysql.auth.username)
+    (dict "name" "MYSQL_PASSWORD" "valueFrom" (dict "secretKeyRef" (dict "name" (printf "%s-secret" (include "n8n.fullname" .)) "key" "mysql-password")))
+    (dict "name" "MYSQL_ROOT_PASSWORD" "valueFrom" (dict "secretKeyRef" (dict "name" (printf "%s-secret" (include "n8n.fullname" .)) "key" "mysql-root-password")))
+  )
+  "livenessProbe" (dict
+    "exec" (dict "command" (list "/bin/sh" "-c" "exec mysqladmin ping -h localhost -u root -p$MYSQL_ROOT_PASSWORD"))
+    "initialDelaySeconds" 30
+    "periodSeconds" 10
+  )
+  "readinessProbe" (dict
+    "exec" (dict "command" (list "/bin/sh" "-c" "-e" "exec mysqladmin ping -h localhost -u root -p$MYSQL_ROOT_PASSWORD"))
+    "initialDelaySeconds" 5
+    "periodSeconds" 5
+  )
+) -}}
+{{- end -}}
+
+{{- if .Values.postgresql.enabled -}}
+{{- $deployments = append $deployments (dict
+  "name" "postgres"
+  "component" "postgres"
+  "enabled" .Values.postgresql.enabled
+  "replicaCount" .Values.postgresql.replicaCount
+  "image" .Values.postgresql.image
+  "port" (dict "name" "postgres" "containerPort" 5432)
+  "resources" .Values.postgresql.resources
+  "persistence" .Values.postgresql.persistence
+  "volumeMount" (dict "name" "postgres-data" "mountPath" "/var/lib/postgresql/data")
+  "env" (list
+    (dict "name" "TZ" "value" .Values.global.timezone)
+    (dict "name" "POSTGRES_DB" "value" .Values.postgresql.auth.database)
+    (dict "name" "POSTGRES_USER" "value" .Values.postgresql.auth.username)
+    (dict "name" "POSTGRES_PASSWORD" "valueFrom" (dict "secretKeyRef" (dict "name" (printf "%s-secret" (include "n8n.fullname" .)) "key" "postgres-password")))
+    (dict "name" "PGDATA" "value" "/var/lib/postgresql/data/pgdata")
+  )
+  "livenessProbe" (dict
+    "exec" (dict "command" (list "/bin/sh" "-c" (printf "exec pg_isready -U %s -d %s" .Values.postgresql.auth.username .Values.postgresql.auth.database)))
+    "initialDelaySeconds" 30
+    "periodSeconds" 10
+  )
+  "readinessProbe" (dict
+    "exec" (dict "command" (list "/bin/sh" "-c" "-e" (printf "exec pg_isready -U %s -d %s" .Values.postgresql.auth.username .Values.postgresql.auth.database)))
+    "initialDelaySeconds" 5
+    "periodSeconds" 5
+  )
+) -}}
+{{- end -}}
+
+{{- if .Values.redis.enabled -}}
+{{- $deployments = append $deployments (dict
+  "name" "redis"
+  "component" "redis"
+  "enabled" .Values.redis.enabled
+  "replicaCount" .Values.redis.replicaCount
+  "image" .Values.redis.image
+  "port" (dict "name" "redis" "containerPort" 6379)
+  "resources" .Values.redis.resources
+  "persistence" .Values.redis.persistence
+  "volumeMount" (dict "name" "redis-data" "mountPath" "/data")
+  "command" (list "redis-server" "--requirepass" "$(REDIS_PASSWORD)" "--appendonly" "yes")
+  "env" (list
+    (dict "name" "TZ" "value" .Values.global.timezone)
+    (dict "name" "REDIS_PASSWORD" "valueFrom" (dict "secretKeyRef" (dict "name" (printf "%s-secret" (include "n8n.fullname" .)) "key" "redis-password")))
+  )
+  "livenessProbe" (dict
+    "exec" (dict "command" (list "redis-cli" "ping"))
+    "initialDelaySeconds" 30
+    "periodSeconds" 10
+  )
+  "readinessProbe" (dict
+    "exec" (dict "command" (list "redis-cli" "ping"))
+    "initialDelaySeconds" 5
+    "periodSeconds" 5
+  )
+) -}}
+{{- end -}}
+
+{{- range $deployment := $deployments }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "n8n.fullname" $ }}-{{ $deployment.name }}
+  labels:
+    {{- include "n8n.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $deployment.component }}
+spec:
+  replicas: {{ $deployment.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "n8n.selectorLabels" $ | nindent 6 }}
+      app.kubernetes.io/component: {{ $deployment.component }}
+  template:
+    metadata:
+      labels:
+        {{- include "n8n.selectorLabels" $ | nindent 8 }}
+        app.kubernetes.io/component: {{ $deployment.component }}
+    spec:
+      containers:
+        - name: {{ $deployment.name }}
+          image: "{{ $deployment.image.repository }}:{{ $deployment.image.tag }}"
+          imagePullPolicy: {{ $deployment.image.pullPolicy }}
+          ports:
+            - name: {{ $deployment.port.name }}
+              containerPort: {{ $deployment.port.containerPort }}
+              protocol: TCP
+          {{- if $deployment.command }}
+          command:
+            {{- range $deployment.command }}
+            - {{ . | quote }}
+            {{- end }}
+          {{- end }}
+          env:
+            {{- range $deployment.env }}
+            - name: {{ .name }}
+              {{- if .value }}
+              value: {{ .value | quote }}
+              {{- else if .valueFrom }}
+              valueFrom:
+                {{- toYaml .valueFrom | nindent 16 }}
+              {{- end }}
+            {{- end }}
+          resources:
+            {{- toYaml $deployment.resources | nindent 12 }}
+          volumeMounts:
+            - name: {{ $deployment.volumeMount.name }}
+              mountPath: {{ $deployment.volumeMount.mountPath }}
+          livenessProbe:
+            {{- toYaml $deployment.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml $deployment.readinessProbe | nindent 12 }}
+      volumes:
+        - name: {{ $deployment.volumeMount.name }}
+          {{- if $deployment.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "n8n.fullname" $ }}-{{ $deployment.name }}-pvc
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+      {{- with $.Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $.Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $.Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+{{- if $deployment.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "n8n.fullname" $ }}-{{ $deployment.name }}-pvc
+  labels:
+    {{- include "n8n.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $deployment.component }}
+spec:
+  accessModes:
+    - {{ $deployment.persistence.accessMode }}
+  resources:
+    requests:
+      storage: {{ $deployment.persistence.size }}
+  {{- if $deployment.persistence.storageClass }}
+  {{- if (eq "-" $deployment.persistence.storageClass) }}
+  storageClassName: ""
+  {{- else }}
+  storageClassName: {{ $deployment.persistence.storageClass | quote }}
+  {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }} 

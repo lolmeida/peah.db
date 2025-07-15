@@ -1,0 +1,34 @@
+{{- $services := list -}}
+{{- if .Values.mysql.enabled -}}
+{{- $services = append $services (dict "name" "mysql" "component" "mysql" "port" .Values.mysql.service.port "targetPort" "mysql" "type" .Values.mysql.service.type) -}}
+{{- end -}}
+{{- if .Values.postgresql.enabled -}}
+{{- $services = append $services (dict "name" "postgres" "component" "postgres" "port" .Values.postgresql.service.port "targetPort" "postgres" "type" .Values.postgresql.service.type) -}}
+{{- end -}}
+{{- if .Values.redis.enabled -}}
+{{- $services = append $services (dict "name" "redis" "component" "redis" "port" .Values.redis.service.port "targetPort" "redis" "type" .Values.redis.service.type) -}}
+{{- end -}}
+{{- if .Values.monitoring.grafana.enabled -}}
+{{- $services = append $services (dict "name" "grafana" "component" "grafana" "port" .Values.monitoring.grafana.service.port "targetPort" "http" "type" .Values.monitoring.grafana.service.type) -}}
+{{- end -}}
+
+{{- range $service := $services }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "n8n.fullname" $ }}-{{ $service.name }}
+  labels:
+    {{- include "n8n.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $service.component }}
+spec:
+  type: {{ $service.type }}
+  ports:
+    - port: {{ $service.port }}
+      targetPort: {{ $service.targetPort }}
+      protocol: TCP
+      name: {{ $service.targetPort }}
+  selector:
+    {{- include "n8n.selectorLabels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $service.component }}
+{{- end }} 
