@@ -1,5 +1,27 @@
 # Dashboard Configuration for Grafana
 # This file defines the structure of all dashboards in a more maintainable way
+#
+# How to add a new dashboard:
+# 1. Add a new key under 'dashboards' with your dashboard name
+# 2. Define title, tags, and panels array
+# 3. Each panel needs: id, title, type, expr, legend, width, height, x, y
+# 4. Panel types: "stat" (for status indicators) or "graph" (for metrics)
+# 5. The template will automatically generate the JSON for Grafana
+#
+# Example structure:
+#   new-dashboard:
+#     title: "My New Dashboard"
+#     tags: ["tag1", "tag2"]
+#     panels:
+#       - id: 1
+#         title: "Panel Title"
+#         type: "stat"  # or "graph"
+#         expr: "prometheus_query_here"
+#         legend: "Legend Text"
+#         width: 8
+#         height: 8
+#         x: 0
+#         y: 0
 
 dashboards:
   n8n-overview:
@@ -160,4 +182,5 @@ dashboards:
         width: 8
         height: 8
         x: 16
-        y: 0 
+        y: 0
+ 
