@@ -60,4 +60,90 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+
+
+{{/*
+Generate a single panel based on configuration
+*/}}
+{{- define "grafana.panel" -}}
+{{- $panel := . -}}
+{
+  "id": {{ $panel.id }},
+  "title": "{{ $panel.title }}",
+  "type": "{{ $panel.type }}",
+  "targets": [
+    {
+      "expr": "{{ $panel.expr }}",
+      "legendFormat": "{{ $panel.legend }}"
+    }
+  ],
+  {{- if eq $panel.type "stat" }}
+  "fieldConfig": {
+    "defaults": {
+      "color": {
+        "mode": "thresholds"
+      },
+      "thresholds": {
+        "steps": [
+          {
+            "color": "red",
+            "value": 0
+          },
+          {
+            "color": "green",
+            "value": 1
+          }
+        ]
+      }
+    }
+  },
+  {{- end }}
+  "gridPos": {
+    "h": {{ $panel.height | default 8 }},
+    "w": {{ $panel.width | default 8 }},
+    "x": {{ $panel.x | default 0 }},
+    "y": {{ $panel.y | default 0 }}
+  }
+}
+{{- end }}
+
+{{/*
+Generate complete dashboard JSON from configuration
+*/}}
+{{- define "grafana.dashboard" -}}
+{{- $dashConfig := . -}}
+{
+  "id": null,
+  "title": "{{ $dashConfig.title }}",
+  "tags": {{ $dashConfig.tags | toJson }},
+  "style": "dark",
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "panels": [
+    {{- range $index, $panel := $dashConfig.panels }}
+    {{- if $index }},{{ end }}
+    {{- include "grafana.panel" $panel }}
+    {{- end }}
+  ]
+}
+{{- end }}
+
+{{/*
+Generate all dashboards from configuration
+*/}}
+{{- define "grafana.dashboards" -}}
+{{- $dashConfigFile := .Files.Get "dash-config-values.yaml" -}}
+{{- if $dashConfigFile -}}
+{{- $dashConfig := fromYaml $dashConfigFile -}}
+{{- range $key, $config := $dashConfig.dashboards }}
+  {{ $key }}.json: |
+    {{- include "grafana.dashboard" $config | nindent 4 }}
+{{- end }}
+{{- end }}
+{{- end }}
  

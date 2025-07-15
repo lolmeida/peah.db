@@ -1,0 +1,163 @@
+# Dashboard Configuration for Grafana
+# This file defines the structure of all dashboards in a more maintainable way
+
+dashboards:
+  n8n-overview:
+    title: "N8N Overview"
+    tags: ["n8n", "automation"]
+    panels:
+      - id: 1
+        title: "N8N Status"
+        type: "stat"
+        expr: "up{job=\"n8n\"}"
+        legend: "N8N Up"
+        width: 12
+        height: 8
+        x: 0
+        y: 0
+      - id: 2
+        title: "Response Time"
+        type: "graph"
+        expr: "prometheus_http_request_duration_seconds{job=\"n8n\"}"
+        legend: "Response Time"
+        width: 12
+        height: 8
+        x: 12
+        y: 0
+
+  postgresql-dashboard:
+    title: "PostgreSQL Monitoring"
+    tags: ["postgresql", "database"]
+    panels:
+      - id: 1
+        title: "PostgreSQL Status"
+        type: "stat"
+        expr: "up{job=\"postgresql\"}"
+        legend: "PostgreSQL Up"
+        width: 8
+        height: 8
+        x: 0
+        y: 0
+      - id: 2
+        title: "Database Connections"
+        type: "graph"
+        expr: "pg_stat_database_numbackends{job=\"postgresql\"}"
+        legend: "Active Connections"
+        width: 8
+        height: 8
+        x: 8
+        y: 0
+      - id: 3
+        title: "Database Size"
+        type: "graph"
+        expr: "pg_database_size_bytes{job=\"postgresql\"}"
+        legend: "Database Size"
+        width: 8
+        height: 8
+        x: 16
+        y: 0
+
+  mysql-dashboard:
+    title: "MySQL Monitoring"
+    tags: ["mysql", "database"]
+    panels:
+      - id: 1
+        title: "MySQL Status"
+        type: "stat"
+        expr: "up{job=\"mysql\"}"
+        legend: "MySQL Up"
+        width: 8
+        height: 8
+        x: 0
+        y: 0
+      - id: 2
+        title: "MySQL Connections"
+        type: "graph"
+        expr: "mysql_global_status_threads_connected{job=\"mysql\"}"
+        legend: "Active Connections"
+        width: 8
+        height: 8
+        x: 8
+        y: 0
+      - id: 3
+        title: "Query Rate"
+        type: "graph"
+        expr: "rate(mysql_global_status_queries{job=\"mysql\"}[5m])"
+        legend: "Queries/sec"
+        width: 8
+        height: 8
+        x: 16
+        y: 0
+
+  redis-dashboard:
+    title: "Redis Monitoring"
+    tags: ["redis", "cache"]
+    panels:
+      - id: 1
+        title: "Redis Status"
+        type: "stat"
+        expr: "up{job=\"redis\"}"
+        legend: "Redis Up"
+        width: 6
+        height: 8
+        x: 0
+        y: 0
+      - id: 2
+        title: "Memory Usage"
+        type: "graph"
+        expr: "redis_memory_used_bytes{job=\"redis\"}"
+        legend: "Memory Used"
+        width: 6
+        height: 8
+        x: 6
+        y: 0
+      - id: 3
+        title: "Hit Rate"
+        type: "graph"
+        expr: "rate(redis_keyspace_hits_total{job=\"redis\"}[5m]) / (rate(redis_keyspace_hits_total{job=\"redis\"}[5m]) + rate(redis_keyspace_misses_total{job=\"redis\"}[5m]))"
+        legend: "Hit Rate"
+        width: 6
+        height: 8
+        x: 12
+        y: 0
+      - id: 4
+        title: "Commands/sec"
+        type: "graph"
+        expr: "rate(redis_commands_processed_total{job=\"redis\"}[5m])"
+        legend: "Commands/sec"
+        width: 6
+        height: 8
+        x: 18
+        y: 0
+
+  kubernetes-overview:
+    title: "Kubernetes Cluster"
+    tags: ["kubernetes", "cluster"]
+    panels:
+      - id: 1
+        title: "Pod Status"
+        type: "stat"
+        expr: "kube_pod_status_phase{phase=\"Running\"}"
+        legend: "Running Pods"
+        width: 8
+        height: 8
+        x: 0
+        y: 0
+      - id: 2
+        title: "CPU Usage"
+        type: "graph"
+        expr: "rate(container_cpu_usage_seconds_total{container!=\"POD\",container!=\"\"}[5m])"
+        legend: "CPU Usage"
+        width: 8
+        height: 8
+        x: 8
+        y: 0
+      - id: 3
+        title: "Memory Usage"
+        type: "graph"
+        expr: "container_memory_usage_bytes{container!=\"POD\",container!=\"\"}"
+        legend: "Memory Usage"
+        width: 8
+        height: 8
+        x: 16
+        y: 0 
