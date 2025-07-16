@@ -2,7 +2,7 @@
 
 ## 🎯 **Architecture Overview**
 
-The integrated monitoring stack provides complete observability through unified templates:
+The integrated monitoring stack provides complete observability through helper template + loop architecture:
 - **Prometheus**: Metrics collection with service discovery  
 - **Grafana**: Advanced visualization with auto-generated dashboards
 - **Ingress**: Secure external access with automatic TLS
@@ -180,7 +180,7 @@ curl -k https://prometheus.yourdomain.com/-/healthy
 - **Internal Service**: `n8n-prometheus:9090`
 - **Storage**: 10Gi persistent volume
 - **Data Retention**: 15 days (configurable)
-- **Generated via**: `templates/deployments.yaml` (unified template)
+- **Generated via**: `_helpers.tpl:420-465` + `templates/deployments.yaml` (helper template + loop)
 - **ConfigMap**: `n8n-prometheus-config` (scrape configurations)
 - **RBAC**: ServiceAccount + ClusterRole for Kubernetes metrics
 
@@ -189,7 +189,7 @@ curl -k https://prometheus.yourdomain.com/-/healthy
 - **Internal Service**: `n8n-grafana:3000`
 - **Storage**: 5Gi persistent volume
 - **Authentication**: admin / configured password
-- **Generated via**: `templates/deployments.yaml` (unified template)
+- **Generated via**: `_helpers.tpl:365-419` + `templates/deployments.yaml` (helper template + loop)
 - **ConfigMap**: `n8n-grafana-dashboards` (auto-provisioned dashboards)
 
 ### **Resource Management**

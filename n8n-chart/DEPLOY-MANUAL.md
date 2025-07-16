@@ -2,7 +2,7 @@
 
 **Production Domain:** `n8n.lolmeida.com`  
 **Monitoring Domains:** `grafana.lolmeida.com`, `prometheus.lolmeida.com`  
-**Target Environment:** MicroK8s cluster with unified template architecture  
+**Target Environment:** MicroK8s cluster with unified helper template + loop architecture  
 **Chart Version:** Advanced n8n with integrated monitoring stack  
 
 ---

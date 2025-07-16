@@ -3,7 +3,7 @@
 ## Overview
 
 This guide covers deployment of the advanced n8n Helm chart featuring:
-- **Unified template architecture** with dynamic component generation
+- **Helper template + loop architecture** with dynamic component generation
 - **Integrated monitoring stack** (Prometheus + Grafana)
 - **Multiple database support** (PostgreSQL, MySQL, SQLite)
 - **Redis caching layer** for enhanced performance
@@ -169,8 +169,8 @@ ingress:
 
 ## Advanced Features
 
-### Database Architecture
-The chart automatically configures database connections based on enabled components:
+### Database Architecture (via `_helpers.tpl:183-197`)
+The chart automatically configures database connections based on enabled components using helper template logic:
 
 ```yaml
 # Priority order (automatic selection):

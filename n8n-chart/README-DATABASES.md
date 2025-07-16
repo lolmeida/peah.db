@@ -29,8 +29,8 @@ The n8n chart provides comprehensive database support through a unified deployme
 
 ## 🔧 **Configuration Architecture**
 
-### **Dynamic Database Selection** (`templates/deployments.yaml:15-29`)
-The chart uses intelligent database priority logic:
+### **Dynamic Database Selection** (`_helpers.tpl:183-197`)
+The chart uses intelligent database priority logic implemented in the helper template:
 
 ```yaml
 # In custom-values.yaml
@@ -122,8 +122,8 @@ kubectl logs deployment/n8n-n8n | grep -i "database\|connection"
 
 ## 📊 **Generated Resources**
 
-### **Dynamic Deployments** (via `templates/deployments.yaml`)
-Components are generated only if enabled:
+### **Dynamic Deployments** (via `_helpers.tpl:171-465` + `templates/deployments.yaml`)
+Components are generated only if enabled using the helper template configuration:
 - `n8n-n8n` - Always deployed (main application)
 - `n8n-postgres` - Only if `postgresql.enabled: true`
 - `n8n-mysql` - Only if `mysql.enabled: true` and PostgreSQL disabled

@@ -78,15 +78,20 @@ templates/
 
 ### Key Architectural Patterns
 
-1. **Dynamic Component Lists**: Templates loop through component configurations to generate deployments, services, and other resources automatically.
+1. **Helper Template + Loop Architecture**: All major templates use centralized helper templates in `_helpers.tpl` with dynamic loops for component generation:
+   - `n8n.deploymentConfigs` - All deployment configurations
+   - `n8n.serviceConfigs` - All service configurations  
+   - `n8n.ingressConfigs` - All ingress configurations
+   - `n8n.configmapConfigs` - All ConfigMap configurations
+   - `n8n.pvcConfigs` - All PVC configurations
 
-2. **Database Priority Logic** (in templates/deployments.yaml:15-29):
+2. **Database Priority Logic** (in deployments helper):
    - PostgreSQL takes precedence if enabled
    - Falls back to MySQL if PostgreSQL disabled  
    - Uses SQLite if both disabled
    - Environment variables set dynamically based on enabled database
 
-3. **Template-Generated Dashboards**: Grafana dashboards are generated from YAML configuration using Helm template functions in _helpers.tpl:69-148.
+3. **Template-Generated Dashboards**: Grafana dashboards are generated from YAML configuration using Helm template functions in `_helpers.tpl:69-148`.
 
 4. **Conditional Resource Creation**: Components only deploy if enabled in values, with sophisticated conditional logic for monitoring stack.
 
@@ -178,9 +183,13 @@ The `deploy-n8n.sh` script provides full automation:
 
 ### Adding New Components
 1. Add component configuration to `values.yaml`
-2. Add component to appropriate list in templates (deployments, services, etc.)
-3. Add environment variables and secrets if needed
-4. Test with `helm template` and deploy
+2. Add component to appropriate helper template in `_helpers.tpl`:
+   - For deployments: Add to `n8n.deploymentConfigs`
+   - For services: Add to `n8n.serviceConfigs`
+   - For ingresses: Add to `n8n.ingressConfigs`
+   - For ConfigMaps: Add to `n8n.configmapConfigs`
+   - For PVCs: Add to `n8n.pvcConfigs`
+3. Test with `helm template` and deploy
 
 ### Modifying Dashboard Configuration
 1. Edit dashboard config in `dash-config-values.yaml`
@@ -230,7 +239,14 @@ The chart assumes:
 
 - **SSH Command for Cluster**: `ssh n8n para aceder ao cluster`
 
-## Memories
+## Template Development Principles
 
-### Custom Values Configuration
-- **Mantem o padrão existente em @custom-values.yaml**: Ensure any modifications to custom-values.yaml preserve the existing structure and configuration patterns
+When modifying templates, follow these architectural patterns:
+
+1. **Always use helper templates**: Never inline complex logic in main templates
+2. **Follow the loop pattern**: Use `fromYaml (include "helper.name" .)` then `range $key, $item`
+3. **Centralize configuration**: Add new components to helper templates in `_helpers.tpl`
+4. **Maintain consistency**: Use same naming patterns and structure across components
+5. **Test thoroughly**: Always run `helm template` and validate with `./check-dashboards.sh`
+
+The chart's unified architecture ensures that adding new components requires minimal template changes - just configuration in the helper templates.
