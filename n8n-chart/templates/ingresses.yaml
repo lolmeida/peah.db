@@ -41,8 +41,8 @@ spec:
           {{- end }}
     {{- end }}
 {{- end }}
+{{- if .Values.ingress.monitoring.enabled }}
 
-{{- if .Values.ingress.monitoring.enabled -}}
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
