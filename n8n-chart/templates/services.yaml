@@ -1,24 +1,6 @@
-{{- $services := list -}}
-{{- if .Values.services.n8n.enabled -}}
-{{- $services = append $services (dict "name" "n8n" "component" "n8n" "port" .Values.services.n8n.port "targetPort" .Values.services.n8n.targetPort "type" .Values.services.n8n.type) -}}
-{{- end -}}
-{{- if and .Values.mysql.enabled .Values.services.mysql.enabled -}}
-{{- $services = append $services (dict "name" "mysql" "component" "mysql" "port" .Values.services.mysql.port "targetPort" .Values.services.mysql.targetPort "type" .Values.services.mysql.type) -}}
-{{- end -}}
-{{- if and .Values.postgresql.enabled .Values.services.postgresql.enabled -}}
-{{- $services = append $services (dict "name" "postgres" "component" "postgres" "port" .Values.services.postgresql.port "targetPort" .Values.services.postgresql.targetPort "type" .Values.services.postgresql.type) -}}
-{{- end -}}
-{{- if and .Values.redis.enabled .Values.services.redis.enabled -}}
-{{- $services = append $services (dict "name" "redis" "component" "redis" "port" .Values.services.redis.port "targetPort" .Values.services.redis.targetPort "type" .Values.services.redis.type) -}}
-{{- end -}}
-{{- if and .Values.monitoring.grafana.enabled .Values.services.grafana.enabled -}}
-{{- $services = append $services (dict "name" "grafana" "component" "grafana" "port" .Values.services.grafana.port "targetPort" .Values.services.grafana.targetPort "type" .Values.services.grafana.type) -}}
-{{- end -}}
-{{- if and .Values.monitoring.prometheus.enabled .Values.services.prometheus.enabled -}}
-{{- $services = append $services (dict "name" "prometheus" "component" "prometheus" "port" .Values.services.prometheus.port "targetPort" .Values.services.prometheus.targetPort "type" .Values.services.prometheus.type) -}}
-{{- end -}}
-
-{{- range $service := $services }}
+{{- $serviceConfigs := fromYaml (include "n8n.serviceConfigs" .) -}}
+{{- range $key, $service := $serviceConfigs }}
+{{- if $service.enabled }}
 ---
 apiVersion: v1
 kind: Service
@@ -37,4 +19,5 @@ spec:
   selector:
     {{- include "n8n.selectorLabels" $ | nindent 4 }}
     app.kubernetes.io/component: {{ $service.component }}
-{{- end }} 
+{{- end }}
+{{- end }}

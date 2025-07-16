@@ -1,67 +1,31 @@
-{{- if .Values.ingress.n8n.enabled -}}
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: {{ include "n8n.fullname" . }}-ingress
-  labels:
-    {{- include "n8n.labels" . | nindent 4 }}
-  {{- with .Values.ingress.n8n.annotations }}
-  annotations:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
-spec:
-  {{- if .Values.ingress.n8n.className }}
-  ingressClassName: {{ .Values.ingress.n8n.className }}
-  {{- end }}
-  {{- if .Values.ingress.n8n.tls }}
-  tls:
-    {{- range .Values.ingress.n8n.tls }}
-    - hosts:
-        {{- range .hosts }}
-        - {{ . | quote }}
-        {{- end }}
-      secretName: {{ .secretName }}
-    {{- end }}
-  {{- end }}
-  rules:
-    {{- range .Values.ingress.n8n.hosts }}
-    - host: {{ .host | quote }}
-      http:
-        paths:
-          {{- range .paths }}
-          - path: {{ .path }}
-            {{- if .pathType }}
-            pathType: {{ .pathType }}
-            {{- end }}
-            backend:
-              service:
-                name: {{ include "n8n.fullname" $ }}-n8n
-                port:
-                  number: {{ $.Values.services.n8n.port }}
-          {{- end }}
-    {{- end }}
-{{- end }}
-{{- if .Values.ingress.monitoring.enabled }}
-
+{{- $ingressConfigs := fromYaml (include "n8n.ingressConfigs" .) -}}
+{{- $isFirst := true -}}
+{{- range $key, $ingress := $ingressConfigs }}
+{{- if $ingress.enabled }}
+{{- if not $isFirst }}
 ---
+{{- end }}
+{{- $isFirst = false }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "n8n.fullname" . }}-monitoring-ingress
+  name: {{ include "n8n.fullname" $ }}-{{ $ingress.name }}
   labels:
-    {{- include "n8n.labels" . | nindent 4 }}
-    app.kubernetes.io/component: monitoring
-  {{- with .Values.ingress.monitoring.annotations }}
+    {{- include "n8n.labels" $ | nindent 4 }}
+    {{- if $ingress.component }}
+    app.kubernetes.io/component: {{ $ingress.component }}
+    {{- end }}
+  {{- with $ingress.config.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  {{- if .Values.ingress.monitoring.className }}
-  ingressClassName: {{ .Values.ingress.monitoring.className }}
+  {{- if $ingress.config.className }}
+  ingressClassName: {{ $ingress.config.className }}
   {{- end }}
-  {{- if .Values.ingress.monitoring.tls }}
+  {{- if $ingress.config.tls }}
   tls:
-    {{- range .Values.ingress.monitoring.tls }}
+    {{- range $ingress.config.tls }}
     - hosts:
         {{- range .hosts }}
         - {{ . | quote }}
@@ -70,7 +34,7 @@ spec:
     {{- end }}
   {{- end }}
   rules:
-    {{- range .Values.ingress.monitoring.hosts }}
+    {{- range $ingress.config.hosts }}
     - host: {{ .host | quote }}
       http:
         paths:
@@ -81,9 +45,16 @@ spec:
             {{- end }}
             backend:
               service:
+                {{- if .service }}
                 name: {{ include "n8n.fullname" $ }}-{{ .service }}
                 port:
                   number: {{ index $.Values.services .service "port" }}
+                {{- else }}
+                name: {{ include "n8n.fullname" $ }}-{{ $ingress.serviceName }}
+                port:
+                  number: {{ index $.Values.services $ingress.serviceName "port" }}
+                {{- end }}
           {{- end }}
     {{- end }}
-{{- end }} 
+{{- end }}
+{{- end }}

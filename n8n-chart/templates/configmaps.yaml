@@ -1,19 +1,26 @@
-{{- if and .Values.monitoring.grafana.enabled (default true .Values.monitoring.grafana.createConfigMap) -}}
+{{- $configmapConfigs := fromYaml (include "n8n.configmapConfigs" .) -}}
+{{- range $key, $configmap := $configmapConfigs }}
+{{- if $configmap.enabled }}
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "n8n.fullname" . }}-grafana-config
+  name: {{ include "n8n.fullname" $ }}-{{ $configmap.name }}
   labels:
-    {{- include "n8n.labels" . | nindent 4 }}
-    app.kubernetes.io/component: grafana
+    {{- include "n8n.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $configmap.component }}
+    {{- if $configmap.extraLabel }}
+    {{ $configmap.extraLabel }}: {{ $configmap.extraLabelValue | quote }}
+    {{- end }}
 data:
+{{- if eq $configmap.name "grafana-config" }}
   grafana.ini: |
     [server]
-    root_url = {{ .Values.monitoring.grafana.config.rootUrl }}
+    root_url = {{ $.Values.monitoring.grafana.config.rootUrl }}
     
     [security]
-    admin_user = {{ .Values.monitoring.grafana.auth.adminUser }}
-    admin_password = {{ .Values.monitoring.grafana.auth.adminPassword }}
+    admin_user = {{ $.Values.monitoring.grafana.auth.adminUser }}
+    admin_password = {{ $.Values.monitoring.grafana.auth.adminPassword }}
     
     [analytics]
     reporting_enabled = false
@@ -35,7 +42,7 @@ data:
       - name: Prometheus
         type: prometheus
         access: proxy
-        url: http://{{ include "n8n.fullname" . }}-prometheus:{{ .Values.monitoring.prometheus.service.port }}
+        url: http://{{ include "n8n.fullname" $ }}-prometheus:{{ $.Values.monitoring.prometheus.service.port }}
         isDefault: true
         editable: true
   
@@ -50,18 +57,7 @@ data:
         updateIntervalSeconds: 30
         options:
           path: /var/lib/grafana/dashboards
-{{- end }}
-
-{{- if and .Values.monitoring.prometheus.enabled (default true .Values.monitoring.prometheus.createConfigMap) -}}
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ include "n8n.fullname" . }}-prometheus-config
-  labels:
-    {{- include "n8n.labels" . | nindent 4 }}
-    app.kubernetes.io/component: prometheus
-data:
+{{- else if eq $configmap.name "prometheus-config" }}
   prometheus.yml: |
     global:
       scrape_interval: 15s
@@ -74,23 +70,23 @@ data:
       
       - job_name: 'n8n'
         static_configs:
-          - targets: ['{{ include "n8n.fullname" . }}-n8n:{{ .Values.n8n.service.port }}']
+          - targets: ['{{ include "n8n.fullname" $ }}-n8n:{{ $.Values.n8n.service.port }}']
         metrics_path: '/metrics'
         scrape_interval: 30s
       
       - job_name: 'redis'
         static_configs:
-          - targets: ['{{ include "n8n.fullname" . }}-redis:{{ .Values.redis.service.port }}']
+          - targets: ['{{ include "n8n.fullname" $ }}-redis:{{ $.Values.redis.service.port }}']
         scrape_interval: 30s
       
       - job_name: 'postgres'
         static_configs:
-          - targets: ['{{ include "n8n.fullname" . }}-postgres:{{ .Values.postgresql.service.port }}']
+          - targets: ['{{ include "n8n.fullname" $ }}-postgres:{{ $.Values.postgresql.service.port }}']
         scrape_interval: 30s
       
       - job_name: 'mysql'
         static_configs:
-          - targets: ['{{ include "n8n.fullname" . }}-mysql:{{ .Values.mysql.service.port }}']
+          - targets: ['{{ include "n8n.fullname" $ }}-mysql:{{ $.Values.mysql.service.port }}']
         scrape_interval: 30s
       
       - job_name: 'kubernetes-pods'
@@ -117,17 +113,8 @@ data:
           - source_labels: [__meta_kubernetes_pod_name]
             action: replace
             target_label: kubernetes_pod_name
+{{- else if eq $configmap.name "grafana-dashboards" }}
+{{- include "grafana.dashboards" $ | nindent 2 }}
 {{- end }}
----
-{{- if and .Values.monitoring.grafana.enabled (default true .Values.monitoring.grafana.createConfigMap) -}}
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ include "n8n.fullname" . }}-grafana-dashboards
-  labels:
-    {{- include "n8n.labels" . | nindent 4 }}
-    app.kubernetes.io/component: grafana
-    grafana_dashboard: "1"
-data:
-{{- include "grafana.dashboards" . | nindent 2 }}
-{{- end }} 
+{{- end }}
+{{- end }}

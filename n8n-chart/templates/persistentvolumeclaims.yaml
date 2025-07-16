@@ -1,72 +1,6 @@
-{{- $pvcs := list -}}
-
-{{- if and .Values.n8n.enabled .Values.persistence.n8n.enabled -}}
-{{- $pvcs = append $pvcs (dict 
-  "name" "n8n" 
-  "component" "n8n"
-  "enabled" .Values.persistence.n8n.enabled
-  "accessMode" .Values.persistence.n8n.accessMode
-  "size" .Values.persistence.n8n.size
-  "storageClass" .Values.persistence.n8n.storageClass
-) -}}
-{{- end -}}
-
-{{- if and .Values.mysql.enabled .Values.persistence.mysql.enabled -}}
-{{- $pvcs = append $pvcs (dict 
-  "name" "mysql" 
-  "component" "mysql"
-  "enabled" .Values.persistence.mysql.enabled
-  "accessMode" .Values.persistence.mysql.accessMode
-  "size" .Values.persistence.mysql.size
-  "storageClass" .Values.persistence.mysql.storageClass
-) -}}
-{{- end -}}
-
-{{- if and .Values.postgresql.enabled .Values.persistence.postgresql.enabled -}}
-{{- $pvcs = append $pvcs (dict 
-  "name" "postgres" 
-  "component" "postgres"
-  "enabled" .Values.persistence.postgresql.enabled
-  "accessMode" .Values.persistence.postgresql.accessMode
-  "size" .Values.persistence.postgresql.size
-  "storageClass" .Values.persistence.postgresql.storageClass
-) -}}
-{{- end -}}
-
-{{- if and .Values.redis.enabled .Values.persistence.redis.enabled -}}
-{{- $pvcs = append $pvcs (dict 
-  "name" "redis" 
-  "component" "redis"
-  "enabled" .Values.persistence.redis.enabled
-  "accessMode" .Values.persistence.redis.accessMode
-  "size" .Values.persistence.redis.size
-  "storageClass" .Values.persistence.redis.storageClass
-) -}}
-{{- end -}}
-
-{{- if and .Values.monitoring.grafana.enabled .Values.persistence.grafana.enabled -}}
-{{- $pvcs = append $pvcs (dict 
-  "name" "grafana" 
-  "component" "grafana"
-  "enabled" .Values.persistence.grafana.enabled
-  "accessMode" .Values.persistence.grafana.accessMode
-  "size" .Values.persistence.grafana.size
-  "storageClass" .Values.persistence.grafana.storageClass
-) -}}
-{{- end -}}
-
-{{- if and .Values.monitoring.prometheus.enabled .Values.persistence.prometheus.enabled -}}
-{{- $pvcs = append $pvcs (dict 
-  "name" "prometheus" 
-  "component" "prometheus"
-  "enabled" .Values.persistence.prometheus.enabled
-  "accessMode" .Values.persistence.prometheus.accessMode
-  "size" .Values.persistence.prometheus.size
-  "storageClass" .Values.persistence.prometheus.storageClass
-) -}}
-{{- end -}}
-
-{{- range $pvc := $pvcs }}
+{{- $pvcConfigs := fromYaml (include "n8n.pvcConfigs" .) -}}
+{{- range $key, $pvc := $pvcConfigs }}
+{{- if $pvc.enabled }}
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -85,7 +19,8 @@ spec:
   {{- if (eq "-" $pvc.storageClass) }}
   storageClassName: ""
   {{- else }}
-  storageClassName: {{ $pvc.storageClass | quote }}
+  storageClassName: {{ $pvc.storageClass }}
   {{- end }}
   {{- end }}
-{{- end }} 
+{{- end }}
+{{- end }}
