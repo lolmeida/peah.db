@@ -74,7 +74,7 @@ Generate a single panel based on configuration
   "type": "{{ $panel.type }}",
   "targets": [
     {
-      "expr": "{{ $panel.expr }}",
+      "expr": {{ $panel.expr | quote }},
       "legendFormat": "{{ $panel.legend }}"
     }
   ],

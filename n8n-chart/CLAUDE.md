@@ -4,12 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a **Helm chart for deploying n8n** (workflow automation tool) on Kubernetes with:
-- Multiple database options (PostgreSQL, MySQL, SQLite)
-- Redis for caching and queues
-- Automatic SSL/TLS via cert-manager and Let's Encrypt
-- Persistent storage for all data
-- Basic authentication for the n8n interface
+This is a **comprehensive Helm chart for n8n workflow automation** with a complete monitoring stack:
+- **n8n**: Workflow automation with multiple database support (PostgreSQL, MySQL, SQLite)
+- **Redis**: Caching and queues for improved performance  
+- **Prometheus**: Metrics collection and monitoring
+- **Grafana**: Visualization with 5 pre-built dashboards
+- **Ingress**: Automatic SSL/TLS via cert-manager and Let's Encrypt
+- **Authentication**: Basic auth for all components
 
 ## Essential Commands
 
@@ -18,179 +19,218 @@ This is a **Helm chart for deploying n8n** (workflow automation tool) on Kuberne
 # Automated deployment (recommended)
 ./deploy-n8n.sh
 
-# Manual deployment
-helm upgrade --install n8n . -f custom-values.yaml --namespace default
+# Manual deployment with custom values
+helm upgrade --install n8n . -f custom-values.yaml --namespace lolmeida
 
-# Deploy with dry-run to validate
-helm install n8n . -f custom-values.yaml --dry-run --debug
+# Validate before deployment
+helm template n8n . -f custom-values.yaml > /dev/null
+./check-dashboards.sh
 
-# Uninstall
-helm uninstall n8n
+# Uninstall completely
+helm uninstall n8n --namespace lolmeida
 ```
 
-### Verification
+### Monitoring & Verification
 ```bash
-# Check deployment status
+# Check all components
 kubectl get all -l app.kubernetes.io/name=n8n
 
-# View pod logs
-kubectl logs -f deployment/n8n-n8n
+# Check specific components
+kubectl get pods -l app.kubernetes.io/component=n8n
+kubectl get pods -l app.kubernetes.io/component=postgres
+kubectl get pods -l app.kubernetes.io/component=prometheus
+kubectl get pods -l app.kubernetes.io/component=grafana
 
-# Check ingress and certificate
-kubectl describe ingress n8n-ingress
-kubectl describe certificate n8n-tls
+# View logs
+kubectl logs deployment/n8n-n8n -f
+kubectl logs deployment/n8n-prometheus -f
 
-# Test health endpoint
+# Test services
 curl -k https://n8n.lolmeida.com/healthz
+curl -k https://grafana.lolmeida.com/api/health
 ```
 
-### Troubleshooting
+### Dashboard Validation
 ```bash
-# Get events for debugging
-kubectl get events --sort-by='.lastTimestamp'
+# Check dashboard JSON structure
+./check-dashboards.sh
 
-# Check PVC status
-kubectl get pvc
-
-# Describe failing pod
-kubectl describe pod <pod-name>
-
-# Access n8n pod shell
-kubectl exec -it deployment/n8n-n8n -- /bin/sh
+# Validate dashboards in running Grafana
+./check-dashboards.sh --check-grafana
 ```
 
-## Architecture & Configuration
+## Architecture & Template Structure
 
-### Chart Structure
+### Unified Template Architecture
+The chart uses a revolutionary **single-template approach** with dynamic component generation:
+
 ```
-n8n-chart/
-├── Chart.yaml           # Chart metadata
-├── values.yaml          # Default values (test config)
-├── custom-values.yaml   # Production values (use this!)
-├── deploy-n8n.sh       # Automated deployment script
-├── templates/
-│   ├── _helpers.tpl            # Helm template helpers
-│   ├── n8n-deployment.yaml     # Main n8n application
-│   ├── n8n-service.yaml        # n8n service (port 5678)
-│   ├── postgres-deployment.yaml # PostgreSQL database
-│   ├── postgres-service.yaml   # PostgreSQL service
-│   ├── mysql-deployment.yaml   # MySQL database
-│   ├── mysql-service.yaml      # MySQL service
-│   ├── redis-deployment.yaml   # Redis cache
-│   ├── redis-service.yaml      # Redis service
-│   ├── ingress.yaml           # Ingress with TLS
-│   └── secret.yaml            # All passwords
+templates/
+├── _helpers.tpl         # Template helpers + Grafana dashboard generation
+├── deployments.yaml    # Unified deployment template for all components
+├── services.yaml       # Unified service template
+├── configmaps.yaml     # ConfigMaps (Prometheus + Grafana dashboards)
+├── secret.yaml         # Unified secret for all passwords
+├── ingresses.yaml      # Unified ingress template
+├── serviceaccounts.yaml # Service accounts for monitoring
+└── clusterroles.yaml   # RBAC for Prometheus
 ```
 
-### Key Configuration Patterns
+### Key Architectural Patterns
 
-1. **Database Selection Logic**:
+1. **Dynamic Component Lists**: Templates loop through component configurations to generate deployments, services, and other resources automatically.
+
+2. **Database Priority Logic** (in templates/deployments.yaml:15-29):
    - PostgreSQL takes precedence if enabled
-   - Falls back to MySQL if PostgreSQL disabled
+   - Falls back to MySQL if PostgreSQL disabled  
    - Uses SQLite if both disabled
-   - Only one database type runs at a time
+   - Environment variables set dynamically based on enabled database
 
-2. **Environment Variables**:
-   - Database connection dynamically set based on enabled database
-   - All sensitive data stored in Kubernetes secret
-   - Environment variables reference secret keys
+3. **Template-Generated Dashboards**: Grafana dashboards are generated from YAML configuration using Helm template functions in _helpers.tpl:69-148.
 
-3. **Persistent Storage**:
-   - Each component has its own PVC
-   - Data survives pod restarts
-   - Sizes: n8n (5Gi), databases (5Gi), Redis (2Gi)
+4. **Conditional Resource Creation**: Components only deploy if enabled in values, with sophisticated conditional logic for monitoring stack.
 
-### Configuration Reference
+5. **Unified Secret Management**: All passwords stored in single Kubernetes secret with component-specific keys.
 
-**Critical values to modify in custom-values.yaml**:
+### Component Configuration
+
+The chart supports these major components (configured in values.yaml):
+
+- **n8n**: Always enabled, main application
+- **postgresql**: Database option (enabled: true/false)
+- **mysql**: Alternative database (enabled: true/false)  
+- **redis**: Caching layer (enabled: true/false)
+- **monitoring.prometheus**: Metrics collection (enabled: true/false)
+- **monitoring.grafana**: Visualization (enabled: true/false)
+- **monitoring.ingress**: External access to monitoring (enabled: true/false)
+
+### Critical Values Configuration
+
+**Production checklist for custom-values.yaml**:
 ```yaml
+# Change ALL passwords before deployment
 n8n:
   auth:
-    username: "admin"      # Change this
-    password: "changeme"   # Must change!
-  config:
-    domain: "n8n.yourdomain.com"  # Your domain
-    
+    password: "strong-n8n-password"
 postgresql:
-  password: "changeme"     # Must change!
-  
+  auth:
+    password: "strong-postgres-password"
 mysql:
-  rootPassword: "changeme" # Must change!
-  
+  auth:
+    password: "strong-mysql-password"
+    rootPassword: "strong-mysql-root-password"
 redis:
-  password: "changeme"     # Must change!
-```
+  auth:
+    password: "strong-redis-password"
+monitoring:
+  grafana:
+    auth:
+      adminPassword: "strong-grafana-password"
 
-### Deployment Workflow
-
-The `deploy-n8n.sh` script:
-1. Validates custom-values.yaml exists
-2. Checks DNS resolution for configured domain
-3. Validates Helm templates
-4. Copies files to server via SSH (n8n.lolmeida.com)
-5. Runs helm upgrade remotely
-6. Monitors deployment progress
-7. Tests health endpoint
-
-### Important Considerations
-
-1. **DNS Setup**: Ensure domain points to cluster IP before deployment
-2. **Prerequisites**: Requires nginx-ingress and cert-manager in cluster
-3. **Passwords**: Never use default passwords in production
-4. **Database Choice**: PostgreSQL recommended for production
-5. **Monitoring**: Check all pods are running and PVCs are bound
-
-## Common Tasks
-
-### Update Configuration
-```bash
-# Edit custom-values.yaml, then:
-helm upgrade n8n . -f custom-values.yaml
-
-# Or use automated script:
-./deploy-n8n.sh
-```
-
-### Change Passwords
-1. Update passwords in `custom-values.yaml`
-2. Run `helm upgrade` to apply changes
-3. Pods will restart with new credentials
-
-### Enable/Disable Database
-```yaml
-# In custom-values.yaml:
-postgresql:
-  enabled: true   # or false
-mysql:
-  enabled: false  # or true
-```
-
-### Scale Resources
-```yaml
-# Adjust in custom-values.yaml:
+# Configure domains
 n8n:
-  resources:
-    limits:
-      cpu: 1000m
-      memory: 1Gi
+  config:
+    domain: "n8n.yourdomain.com"
+monitoring:
+  grafana:
+    config:
+      rootUrl: "https://grafana.yourdomain.com"
 ```
 
-### Debug Database Connection
+## Pre-built Monitoring Dashboards
+
+The chart includes 5 auto-generated Grafana dashboards:
+
+1. **n8n-overview.json**: n8n service status, workflow metrics, response times
+2. **postgresql-dashboard.json**: Database status, connections, performance  
+3. **mysql-dashboard.json**: MySQL metrics, query performance
+4. **redis-dashboard.json**: Cache performance, memory usage, hit rates
+5. **kubernetes-overview.json**: Pod status, resource usage, cluster health
+
+### Dashboard Generation Process
+- Dashboards defined in `dash-config-values.yaml` 
+- Generated via template helpers in `_helpers.tpl:114-148`
+- Injected into ConfigMap in `templates/configmaps.yaml`
+- Auto-loaded by Grafana on startup
+
+## Deployment Workflow
+
+The `deploy-n8n.sh` script provides full automation:
+
+1. **Validation Phase**:
+   - Checks custom-values.yaml exists
+   - Validates DNS resolution
+   - Validates Helm templates
+   - Validates dashboard JSON structure
+
+2. **Remote Deployment Phase**:
+   - Copies files to target server via SSH
+   - Detects if install or upgrade needed
+   - Executes helm upgrade --install with wait
+   - Verifies all component deployments
+
+3. **Health Check Phase**:
+   - Tests n8n health endpoint
+   - Displays deployment summary with URLs
+   - Shows credential information
+
+## Common Development Tasks
+
+### Adding New Components
+1. Add component configuration to `values.yaml`
+2. Add component to appropriate list in templates (deployments, services, etc.)
+3. Add environment variables and secrets if needed
+4. Test with `helm template` and deploy
+
+### Modifying Dashboard Configuration
+1. Edit dashboard config in `dash-config-values.yaml`
+2. Run `./check-dashboards.sh` to validate JSON structure
+3. Deploy and verify in Grafana
+
+### Database Connection Debugging
 ```bash
-# Check n8n environment variables
+# Check environment variables in n8n pod
 kubectl exec deployment/n8n-n8n -- env | grep DB_
 
 # Test database connectivity
 kubectl exec deployment/n8n-n8n -- nc -zv n8n-postgres 5432
+kubectl exec deployment/n8n-n8n -- nc -zv n8n-mysql 3306
+
+# Port-forward for local database access
+kubectl port-forward svc/n8n-postgres 5432:5432
+kubectl port-forward svc/n8n-mysql 3306:3306
 ```
 
-## Status Report Context
+### Monitoring Stack Troubleshooting
+```bash
+# Check Prometheus targets
+kubectl port-forward svc/n8n-prometheus 9090:9090
+# Visit http://localhost:9090/targets
 
-The existing CLAUDE.md contains a detailed Kubernetes cluster status report showing:
-- MicroK8s cluster operational for 26 days
-- All core components working (DNS, networking, ingress, cert-manager)
-- Previous `peah-db` application deployed but pods not running
-- Certificate and ingress properly configured
-- Recommendation to deploy n8n using this chart
+# Check Grafana dashboard loading
+kubectl logs deployment/n8n-grafana | grep -i dashboard
 
-This context helps understand the target environment is properly configured and ready for n8n deployment.
+# Verify ConfigMaps
+kubectl describe configmap n8n-prometheus-config
+kubectl describe configmap n8n-grafana-dashboards
+```
+
+## Development Environment Setup
+
+**Target Environment**: MicroK8s cluster with nginx-ingress and cert-manager
+**Deployment Target**: n8n.lolmeida.com (SSH access required)
+
+The chart assumes:
+- Kubernetes cluster with ingress controller
+- cert-manager for automatic TLS certificates  
+- DNS pointing to cluster IP
+- SSH access to deployment server for automation script
+
+## SSH Access
+
+- **SSH Command for Cluster**: `ssh n8n para aceder ao cluster`
+
+## Memories
+
+### Custom Values Configuration
+- **Mantem o padrão existente em @custom-values.yaml**: Ensure any modifications to custom-values.yaml preserve the existing structure and configuration patterns

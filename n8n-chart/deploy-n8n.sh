@@ -5,7 +5,7 @@
 
 set -e
 
-NAMESPACE="default"
+NAMESPACE="lolmeida"
 RELEASE_NAME="n8n"
 DOMAIN="n8n.lolmeida.com"
 
@@ -49,54 +49,67 @@ ssh n8n "mkdir -p /tmp/n8n-chart"
 scp -r . n8n:/tmp/n8n-chart/
 
 echo -e "${YELLOW}🚀 Executando deploy/upgrade no servidor...${NC}"
-ssh n8n << 'EOF'
+ssh n8n << EOF
 set -e
 
 cd /tmp/n8n-chart
 
-# Verificar se o release já existe
-RELEASE_EXISTS=$(microk8s helm3 list -q | grep -c "^n8n$" || echo "0")
+NAMESPACE="$NAMESPACE"
+RELEASE_NAME="$RELEASE_NAME"
 
-if [ "$RELEASE_EXISTS" = "0" ]; then
-    echo "🔧 Executando helm install (primeira instalação)..."
-    ACTION="install"
-else
-    echo "🔄 Executando helm upgrade (atualizando release existente)..."
-    ACTION="upgrade"
+# Verificar se o namespace existe
+microk8s kubectl get namespace \$NAMESPACE 2>/dev/null || microk8s kubectl create namespace \$NAMESPACE
+
+# Verificar estado do release
+RELEASE_STATUS=\$(microk8s helm3 list -n \$NAMESPACE -q | grep "^\$RELEASE_NAME$" || echo "")
+
+if [ -n "\$RELEASE_STATUS" ]; then
+    echo "🔍 Release \$RELEASE_NAME encontrado no namespace \$NAMESPACE"
+    
+    # Verificar se o release está em estado failed
+    RELEASE_FULL_STATUS=\$(microk8s helm3 list -n \$NAMESPACE | grep "\$RELEASE_NAME" || echo "")
+    
+    if echo "\$RELEASE_FULL_STATUS" | grep -q "failed\|pending"; then
+        echo "⚠️  Release em estado problemático. Fazendo cleanup..."
+        microk8s helm3 uninstall \$RELEASE_NAME -n \$NAMESPACE --wait || true
+        echo "🧹 Cleanup concluído"
+    fi
 fi
 
 # Usar upgrade --install que funciona para ambos os casos
-microk8s helm3 upgrade n8n . -f custom-values.yaml \
-    --namespace default \
+echo "🚀 Executando helm upgrade --install..."
+microk8s helm3 upgrade \$RELEASE_NAME . -f custom-values.yaml \
+    --namespace \$NAMESPACE \
     --install \
+    --create-namespace \
     --wait --timeout=600s
 
 echo "✅ Verificando deployment..."
-microk8s kubectl get pods -l app.kubernetes.io/name=n8n
+microk8s kubectl get pods -n \$NAMESPACE -l app.kubernetes.io/name=\$RELEASE_NAME
 
 echo "🗃️ Verificando bancos de dados..."
 echo "PostgreSQL:"
-microk8s kubectl get pods -l app.kubernetes.io/component=postgres 2>/dev/null || echo "  Nenhum pod PostgreSQL encontrado"
+microk8s kubectl get pods -n \$NAMESPACE -l app.kubernetes.io/component=postgres 2>/dev/null || echo "  Nenhum pod PostgreSQL encontrado"
 echo "MySQL:"
-microk8s kubectl get pods -l app.kubernetes.io/component=mysql 2>/dev/null || echo "  Nenhum pod MySQL encontrado"
+microk8s kubectl get pods -n \$NAMESPACE -l app.kubernetes.io/component=mysql 2>/dev/null || echo "  Nenhum pod MySQL encontrado"
 echo "Redis:"
-microk8s kubectl get pods -l app.kubernetes.io/component=redis 2>/dev/null || echo "  Nenhum pod Redis encontrado"
+microk8s kubectl get pods -n \$NAMESPACE -l app.kubernetes.io/component=redis 2>/dev/null || echo "  Nenhum pod Redis encontrado"
 
 echo "📊 Verificando services..."
-microk8s kubectl get svc -l app.kubernetes.io/name=n8n
+microk8s kubectl get svc -n \$NAMESPACE -l app.kubernetes.io/name=\$RELEASE_NAME
 
 echo "💾 Verificando PVCs..."
-microk8s kubectl get pvc -l app.kubernetes.io/name=n8n 2>/dev/null || echo "  Nenhum PVC encontrado"
+microk8s kubectl get pvc -n \$NAMESPACE -l app.kubernetes.io/name=\$RELEASE_NAME 2>/dev/null || echo "  Nenhum PVC encontrado"
 
 echo "🌐 Verificando ingress..."
-microk8s kubectl get ingress
+microk8s kubectl get ingress -n \$NAMESPACE
 
 echo "🔒 Verificando certificado..."
-microk8s kubectl get certificate
+microk8s kubectl get certificate -n \$NAMESPACE
 
 echo "🏥 Testando conectividade..."
 sleep 20
-curl -f https://n8n.lolmeida.com/healthz && echo -e "\n✨ N8N $ACTION successful!"
+curl -f https://n8n.lolmeida.com/healthz && echo -e "\n✨ N8N deploy/upgrade successful!"
 EOF
 
 echo -e "${GREEN}🎉 Deploy/Upgrade concluído!${NC}"

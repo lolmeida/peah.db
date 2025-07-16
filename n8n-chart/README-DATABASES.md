@@ -1,203 +1,305 @@
-# 🗄️ **N8N com Bancos de Dados**
+# 🗄️ **N8N Database Architecture**
 
-## 📊 **Bancos Disponíveis**
+## 📊 **Supported Databases**
 
-O chart N8N agora inclui suporte para múltiplos bancos de dados:
+The n8n chart provides comprehensive database support through a unified deployment architecture:
 
-### **🐘 PostgreSQL**
-- **Imagem**: `postgres:15-alpine`
-- **Porta**: 5432
-- **Banco**: `n8n`
-- **Usuário**: `n8n`
+### **🐘 PostgreSQL** (Recommended for Production)
+- **Image**: `postgres:15-alpine`
+- **Port**: 5432
+- **Database**: `n8n`
+- **User**: `n8n`
 - **Storage**: 5Gi
+- **Generated via**: `templates/deployments.yaml` (unified template)
 
-### **🐬 MySQL**
-- **Imagem**: `mysql:8.0`
-- **Porta**: 3306
-- **Banco**: `n8n`
-- **Usuário**: `n8n`
+### **🐬 MySQL** (Alternative Database)
+- **Image**: `mysql:8.0`
+- **Port**: 3306
+- **Database**: `n8n`
+- **User**: `n8n`
 - **Storage**: 5Gi
+- **Generated via**: `templates/deployments.yaml` (unified template)
 
-### **🔴 Redis**
-- **Imagem**: `redis:7-alpine`
-- **Porta**: 6379
-- **Uso**: Cache e queues
+### **🔴 Redis** (Performance Cache)
+- **Image**: `redis:7-alpine`
+- **Port**: 6379
+- **Usage**: Caching and job queues for n8n
 - **Storage**: 2Gi
+- **Generated via**: `templates/deployments.yaml` (unified template)
 
-## 🔧 **Configuração**
+## 🔧 **Configuration Architecture**
 
-### **Habilitar/Desabilitar Bancos:**
+### **Dynamic Database Selection** (`templates/deployments.yaml:15-29`)
+The chart uses intelligent database priority logic:
+
 ```yaml
+# In custom-values.yaml
 postgresql:
-  enabled: true    # Use PostgreSQL como banco principal
+  enabled: true    # Primary choice - takes precedence
 
 mysql:
-  enabled: true    # Use MySQL como banco principal
+  enabled: false   # Fallback if PostgreSQL disabled
 
 redis:
-  enabled: true    # Use Redis para cache/queues
+  enabled: true    # Independent - enhances performance
 ```
 
-### **Senhas Seguras (OBRIGATÓRIO):**
+### **Automatic Environment Variable Configuration**
+N8N environment variables are set dynamically based on enabled databases:
+
+- **PostgreSQL enabled**: `DB_TYPE=postgresdb`, connection to `n8n-postgres:5432`
+- **MySQL enabled**: `DB_TYPE=mysqldb`, connection to `n8n-mysql:3306`
+- **Both disabled**: `DB_TYPE=sqlite` (file-based storage)
+- **Redis enabled**: Queue configuration with `n8n-redis:6379`
+
+### **Unified Secret Management** (`templates/secret.yaml`)
+All database passwords stored in single Kubernetes secret:
 ```yaml
-postgresql:
-  auth:
-    password: "sua-senha-postgres-segura"
-
-mysql:
-  auth:
-    password: "sua-senha-mysql-segura"
-    rootPassword: "sua-senha-root-mysql-segura"
-
-redis:
-  auth:
-    password: "sua-senha-redis-segura"
+# Secret keys generated automatically
+- n8n-auth-password
+- postgres-password  
+- mysql-password
+- mysql-root-password
+- redis-password
 ```
 
-## 🎯 **Prioridade de Bancos**
+## 🎯 **Database Priority Logic**
 
-O N8N usará os bancos na seguinte ordem:
-1. **PostgreSQL** (se habilitado)
-2. **MySQL** (se PostgreSQL desabilitado)
-3. **SQLite** (padrão, se ambos desabilitados)
+**Automatic Selection Order**:
+1. **PostgreSQL** (if `postgresql.enabled: true`)
+2. **MySQL** (if PostgreSQL disabled and `mysql.enabled: true`)
+3. **SQLite** (if both disabled - local file storage)
 
-## 🚀 **Deploy com Bancos**
+**Redis**: Independent of primary database choice, used for caching when enabled.
 
-### **1. Editar Configuração:**
+## 🚀 **Deployment with Databases**
+
+### **1. Configure Database Selection:**
 ```bash
+# Edit production values
 vim custom-values.yaml
+
+# Example production config:
+postgresql:
+  enabled: true
+  auth:
+    password: "strong-postgres-password"
+
+mysql:
+  enabled: false  # Not needed if PostgreSQL enabled
+
+redis:
+  enabled: true
+  auth:
+    password: "strong-redis-password"
 ```
 
-### **2. Deploy/Upgrade do N8N:**
+### **2. Automated Deployment:**
 ```bash
-# Instala ou atualiza automaticamente
+# Deploy with validation
 ./deploy-n8n.sh
+
+# The script automatically:
+# - Validates database configuration
+# - Deploys only enabled components
+# - Verifies database connectivity
+# - Tests n8n startup with selected database
 ```
 
-O script detecta automaticamente se é uma primeira instalação ou um upgrade.
-
-### **3. Verificar Deployment:**
+### **3. Verification Commands:**
 ```bash
-ssh n8n "microk8s kubectl get pods -l app.kubernetes.io/name=n8n"
-```
-
-## 📊 **Recursos Criados**
-
-### **Deployments:**
-- `n8n-n8n` - Aplicação N8N
-- `n8n-postgres` - PostgreSQL (se habilitado)
-- `n8n-mysql` - MySQL (se habilitado)
-- `n8n-redis` - Redis (se habilitado)
-
-### **Services:**
-- `n8n-n8n:5678` - N8N Web Interface
-- `n8n-postgres:5432` - PostgreSQL
-- `n8n-mysql:3306` - MySQL
-- `n8n-redis:6379` - Redis
-
-### **PVCs:**
-- `n8n-n8n-pvc` - Dados do N8N (5Gi)
-- `n8n-postgres-pvc` - Dados PostgreSQL (5Gi)
-- `n8n-mysql-pvc` - Dados MySQL (5Gi)
-- `n8n-redis-pvc` - Dados Redis (2Gi)
-
-## 🔐 **Acesso aos Bancos**
-
-### **PostgreSQL:**
-```bash
-# Port-forward
-kubectl port-forward svc/n8n-postgres 5432:5432
-
-# Conectar
-psql -h localhost -U n8n -d n8n
-```
-
-### **MySQL:**
-```bash
-# Port-forward
-kubectl port-forward svc/n8n-mysql 3306:3306
-
-# Conectar
-mysql -h localhost -u n8n -p n8n
-```
-
-### **Redis:**
-```bash
-# Port-forward
-kubectl port-forward svc/n8n-redis 6379:6379
-
-# Conectar
-redis-cli -h localhost -p 6379
-```
-
-## 🛠️ **Troubleshooting**
-
-### **Verificar Logs:**
-```bash
-# PostgreSQL
-kubectl logs deployment/n8n-postgres -f
-
-# MySQL
-kubectl logs deployment/n8n-mysql -f
-
-# Redis
-kubectl logs deployment/n8n-redis -f
-```
-
-### **Verificar Conexões:**
-```bash
-# Status dos bancos
+# Check all database pods
 kubectl get pods -l app.kubernetes.io/name=n8n
 
-# Verificar services
-kubectl get svc -l app.kubernetes.io/name=n8n
+# Check specific database components  
+kubectl get pods -l app.kubernetes.io/component=postgres
+kubectl get pods -l app.kubernetes.io/component=mysql
+kubectl get pods -l app.kubernetes.io/component=redis
+
+# Verify n8n database connection
+kubectl logs deployment/n8n-n8n | grep -i "database\|connection"
 ```
 
-### **Problemas Comuns:**
+## 📊 **Generated Resources**
 
-1. **Pod não inicia**: Verificar logs e senhas
-2. **Conexão falha**: Verificar services e endpoints
-3. **Storage**: Verificar PVCs e storage class
+### **Dynamic Deployments** (via `templates/deployments.yaml`)
+Components are generated only if enabled:
+- `n8n-n8n` - Always deployed (main application)
+- `n8n-postgres` - Only if `postgresql.enabled: true`
+- `n8n-mysql` - Only if `mysql.enabled: true` and PostgreSQL disabled
+- `n8n-redis` - Only if `redis.enabled: true`
 
-## 📈 **Performance**
+### **Unified Services** (via `templates/services.yaml`)
+- `n8n-n8n:5678` - Main n8n interface
+- `n8n-postgres:5432` - PostgreSQL (conditional)
+- `n8n-mysql:3306` - MySQL (conditional)  
+- `n8n-redis:6379` - Redis (conditional)
 
-### **Recursos Recomendados:**
+### **Persistent Storage**
+All components get dedicated PVCs when enabled:
+- `n8n-n8n-pvc` - n8n workflows and data (5Gi)
+- `n8n-postgres-pvc` - PostgreSQL data (5Gi)
+- `n8n-mysql-pvc` - MySQL data (5Gi)
+- `n8n-redis-pvc` - Redis persistence (2Gi)
 
-**PostgreSQL:**
-- CPU: 250m-500m
-- Memory: 256Mi-512Mi
-- Storage: 5Gi+
+## 🔐 **Database Access & Management**
 
-**MySQL:**
-- CPU: 250m-500m
-- Memory: 256Mi-512Mi
-- Storage: 5Gi+
-
-**Redis:**
-- CPU: 100m-250m
-- Memory: 128Mi-256Mi
-- Storage: 2Gi+
-
-## 🔄 **Backup e Restore**
-
-### **PostgreSQL:**
+### **PostgreSQL Connection:**
 ```bash
-# Backup
-kubectl exec deployment/n8n-postgres -- pg_dump -U n8n n8n > backup.sql
+# Port-forward for external access
+kubectl port-forward svc/n8n-postgres 5432:5432
 
-# Restore
-kubectl exec -i deployment/n8n-postgres -- psql -U n8n -d n8n < backup.sql
+# Connect with psql
+psql -h localhost -U n8n -d n8n
+
+# Check connection from within n8n pod
+kubectl exec deployment/n8n-n8n -- nc -zv n8n-postgres 5432
 ```
 
-### **MySQL:**
+### **MySQL Connection:**
 ```bash
-# Backup
-kubectl exec deployment/n8n-mysql -- mysqldump -u n8n -p n8n > backup.sql
+# Port-forward for external access
+kubectl port-forward svc/n8n-mysql 3306:3306
 
-# Restore
-kubectl exec -i deployment/n8n-mysql -- mysql -u n8n -p n8n < backup.sql
+# Connect with mysql client
+mysql -h localhost -u n8n -p n8n
+
+# Check connection from within n8n pod
+kubectl exec deployment/n8n-n8n -- nc -zv n8n-mysql 3306
+```
+
+### **Redis Management:**
+```bash
+# Port-forward for external access
+kubectl port-forward svc/n8n-redis 6379:6379
+
+# Connect with redis-cli
+redis-cli -h localhost -p 6379
+
+# Check cache performance from n8n
+kubectl exec deployment/n8n-n8n -- env | grep QUEUE_BULL_REDIS
+```
+
+## 🛠️ **Troubleshooting & Diagnostics**
+
+### **Component Status Verification:**
+```bash
+# Check all database deployments
+kubectl get deployments -l app.kubernetes.io/name=n8n
+
+# Check database-specific pods
+kubectl get pods -l app.kubernetes.io/component=postgres
+kubectl get pods -l app.kubernetes.io/component=mysql  
+kubectl get pods -l app.kubernetes.io/component=redis
+
+# Verify PVC binding
+kubectl get pvc -l app.kubernetes.io/name=n8n
+```
+
+### **Database Connection Debugging:**
+```bash
+# Check n8n environment variables
+kubectl exec deployment/n8n-n8n -- env | grep DB_
+
+# Test database connectivity from n8n
+kubectl exec deployment/n8n-n8n -- nc -zv n8n-postgres 5432
+kubectl exec deployment/n8n-n8n -- nc -zv n8n-mysql 3306
+
+# View n8n startup logs for database connection
+kubectl logs deployment/n8n-n8n | grep -i "database\|connection\|migrate"
+```
+
+### **Component Logs Analysis:**
+```bash
+# PostgreSQL logs
+kubectl logs deployment/n8n-postgres -f
+
+# MySQL logs  
+kubectl logs deployment/n8n-mysql -f
+
+# Redis logs
+kubectl logs deployment/n8n-redis -f
+
+# n8n logs with database context
+kubectl logs deployment/n8n-n8n -f | grep -i "db\|database\|sql"
+```
+
+### **Common Issues & Solutions:**
+
+1. **Pod Startup Failures**:
+   - Check secret passwords match between components
+   - Verify PVC storage class is available
+   - Check resource limits vs cluster capacity
+
+2. **Connection Failures**:
+   - Verify service endpoints: `kubectl get endpoints`
+   - Check network policies if implemented
+   - Confirm database selection logic in n8n environment
+
+3. **Performance Issues**:
+   - Monitor resource usage: `kubectl top pods`
+   - Check Redis hit rate if enabled
+   - Review database query performance
+
+## 📈 **Performance & Resource Management**
+
+### **Resource Specifications** (from `values.yaml`)
+```yaml
+# Current default allocations
+postgresql:
+  resources:
+    limits: { cpu: "500m", memory: "512Mi" }
+    requests: { cpu: "250m", memory: "256Mi" }
+
+mysql:
+  resources:
+    limits: { cpu: "500m", memory: "512Mi" }
+    requests: { cpu: "250m", memory: "256Mi" }
+
+redis:
+  resources:
+    limits: { cpu: "250m", memory: "256Mi" }
+    requests: { cpu: "100m", memory: "128Mi" }
+```
+
+### **Production Scaling Recommendations:**
+- **PostgreSQL**: Scale to 1-2 CPU, 1-2Gi memory for high workflow volume
+- **MySQL**: Similar scaling profile to PostgreSQL
+- **Redis**: Increase memory to 512Mi-1Gi for large workflow caches
+- **Storage**: Consider 20Gi+ for production database volumes
+
+## 🔄 **Backup & Data Management**
+
+### **PostgreSQL Backup Strategy:**
+```bash
+# Create backup
+kubectl exec deployment/n8n-postgres -- pg_dump -U n8n -d n8n --clean --if-exists > n8n-backup-$(date +%Y%m%d).sql
+
+# Restore from backup
+kubectl exec -i deployment/n8n-postgres -- psql -U n8n -d n8n < n8n-backup-20240101.sql
+
+# Check database size
+kubectl exec deployment/n8n-postgres -- psql -U n8n -d n8n -c "SELECT pg_size_pretty(pg_database_size('n8n'));"
+```
+
+### **MySQL Backup Strategy:**
+```bash
+# Create backup with password
+kubectl exec deployment/n8n-mysql -- mysqldump -u n8n -p$(kubectl get secret n8n-secret -o jsonpath='{.data.mysql-password}' | base64 -d) n8n > n8n-backup-$(date +%Y%m%d).sql
+
+# Restore from backup
+kubectl exec -i deployment/n8n-mysql -- mysql -u n8n -p n8n < n8n-backup-20240101.sql
+```
+
+### **Redis Data Persistence:**
+```bash
+# Force Redis save
+kubectl exec deployment/n8n-redis -- redis-cli BGSAVE
+
+# Check Redis memory usage
+kubectl exec deployment/n8n-redis -- redis-cli INFO memory
 ```
 
 ---
 
-**✨ N8N com bancos de dados robustos para produção! 🚀** 
+**🚀 Production-ready database architecture for n8n workflows!** 

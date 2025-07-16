@@ -3,221 +3,79 @@
 
 global:
   timezone: "Europe/Lisbon"
+  namespace: "lolmeida"
 
 n8n:
-  image:
-    repository: n8nio/n8n
-    tag: "latest"
-    pullPolicy: IfNotPresent
-
-  replicaCount: 1
-
+  enabled: true
   auth:
     enabled: true
     username: "admin"
     password: "n8n-changeme123"  # Change this!
-
   config:
     domain: "n8n.lolmeida.com"
     protocol: "https"
     webhookUrl: "https://n8n.lolmeida.com/"
     editorBaseUrl: "https://n8n.lolmeida.com/"
 
-  service:
-    type: ClusterIP
-    port: 5678
 
-  resources:
-    limits:
-      memory: "512Mi"
-      cpu: "500m"
-    requests:
-      memory: "256Mi"
-      cpu: "250m"
-
-  persistence:
-    enabled: true
-    accessMode: ReadWriteOnce
-    size: 5Gi
-    storageClass: ""
 
 redis:
   enabled: true
-  image:
-    repository: redis
-    tag: "7-alpine"
-    pullPolicy: IfNotPresent
-
-  replicaCount: 1
-
   auth:
     password: "redis-changeme123"  # Change this!
 
-  service:
-    type: ClusterIP
-    port: 6379
-
-  resources:
-    limits:
-      memory: "256Mi"
-      cpu: "250m"
-    requests:
-      memory: "128Mi"
-      cpu: "100m"
-
-  persistence:
-    enabled: true
-    accessMode: ReadWriteOnce
-    size: 2Gi
-    storageClass: ""
+mysql:
+  enabled: true
+  auth:
+    rootPassword: "mysql-root-changeme123"
+    username: "n8n"
+    password: "mysql-n8n-changeme123"
+    database: "n8n"
 
 postgresql:
   enabled: true
-  image:
-    repository: postgres
-    tag: "15-alpine"
-    pullPolicy: IfNotPresent
-
-  replicaCount: 1
-
   auth:
-    database: "n8n"
+    postgresPassword: "postgres-changeme123"
     username: "n8n"
-    password: "postgres-changeme123"  # Change this!
-
-  service:
-    type: ClusterIP
-    port: 5432
-
-  resources:
-    limits:
-      memory: "512Mi"
-      cpu: "500m"
-    requests:
-      memory: "256Mi"
-      cpu: "250m"
-
-  persistence:
-    enabled: true
-    accessMode: ReadWriteOnce
-    size: 5Gi
-    storageClass: ""
-
-mysql:
-  enabled: true
-  image:
-    repository: mysql
-    tag: "8.0"
-    pullPolicy: IfNotPresent
-
-  replicaCount: 1
-
-  auth:
+    password: "postgres-n8n-changeme123"
     database: "n8n"
-    username: "n8n"
-    password: "mysql-changeme123"  # Change this!
-    rootPassword: "mysql-root-changeme123"  # Change this!
 
-  service:
-    type: ClusterIP
-    port: 3306
-
-  resources:
-    limits:
-      memory: "512Mi"
-      cpu: "500m"
-    requests:
-      memory: "256Mi"
-      cpu: "250m"
-
-  persistence:
-    enabled: true
-    accessMode: ReadWriteOnce
-    size: 5Gi
-    storageClass: ""
-
-ingress:
-  enabled: true
-  className: "nginx"
-  annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
-  hosts:
-    - host: n8n.lolmeida.com
-      paths:
-        - path: /
-          pathType: Prefix
-  tls:
-    - secretName: n8n-tls
-      hosts:
-        - n8n.lolmeida.com
-
+# Monitoring Stack
 monitoring:
-  # Prometheus - Metrics Collection
-  prometheus:
-    enabled: true
-    image:
-      repository: prom/prometheus
-      tag: "v2.45.0"
-      pullPolicy: IfNotPresent
-    
-    service:
-      type: ClusterIP
-      port: 9090
-    
-    retention: "15d"
-    
-    resources:
-      limits:
-        memory: "512Mi"
-        cpu: "500m"
-      requests:
-        memory: "256Mi"
-        cpu: "250m"
-    
-    persistence:
-      enabled: true
-      accessMode: ReadWriteOnce
-      size: 10Gi
-      storageClass: ""
-  
-  # Grafana - Visualization
   grafana:
     enabled: true
-    image:
-      repository: grafana/grafana
-      tag: "10.2.0"
-      pullPolicy: IfNotPresent
-    
+    createConfigMap: true
     auth:
       adminUser: "admin"
-      adminPassword: "grafana-changeme123"  # Change this!
-    
+      adminPassword: "grafana-changeme123"
     config:
       rootUrl: "https://grafana.lolmeida.com"
-      dashboards:
-        defaultHomeDashboardPath: "/var/lib/grafana/dashboards/n8n-overview.json"
-    
-    service:
-      type: ClusterIP
-      port: 3000
-    
-    resources:
-      limits:
-        memory: "512Mi"
-        cpu: "500m"
-      requests:
-        memory: "256Mi"
-        cpu: "250m"
-    
-    persistence:
-      enabled: true
-      accessMode: ReadWriteOnce
-      size: 5Gi
-      storageClass: ""
-  
-  # Ingress for external access
-  ingress:
+  prometheus:
+    enabled: true
+    createConfigMap: true
+    createServiceAccount: true
+    createClusterRole: true
+
+
+
+# Centralized Ingress Configuration
+ingress:
+  n8n:
+    enabled: true
+    className: "nginx"
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    hosts:
+      - host: n8n.lolmeida.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: n8n-tls
+        hosts:
+          - n8n.lolmeida.com
+  monitoring:
     enabled: true
     className: "nginx"
     annotations:
@@ -235,10 +93,165 @@ monitoring:
             pathType: Prefix
             service: prometheus
     tls:
-      - secretName: monitoring-tls
+      - secretName: grafana-tls
         hosts:
           - grafana.lolmeida.com
+      - secretName: prometheus-tls
+        hosts:
           - prometheus.lolmeida.com
+
+# Centralized Deployments Configuration
+deployments:
+  n8n:
+    enabled: true
+    replicaCount: 1
+    image:
+      repository: n8nio/n8n
+      tag: "latest"
+      pullPolicy: IfNotPresent
+    resources:
+      limits:
+        memory: "512Mi"
+        cpu: "200m"
+      requests:
+        memory: "256Mi"
+        cpu: "50m"
+  mysql:
+    enabled: true
+    replicaCount: 1
+    image:
+      repository: mysql
+      tag: "8.0"
+      pullPolicy: IfNotPresent
+    resources:
+      limits:
+        memory: "512Mi"
+        cpu: "200m"
+      requests:
+        memory: "256Mi"
+        cpu: "50m"
+  postgresql:
+    enabled: true
+    replicaCount: 1
+    image:
+      repository: postgres
+      tag: "14"
+      pullPolicy: IfNotPresent
+    resources:
+      limits:
+        memory: "512Mi"
+        cpu: "200m"
+      requests:
+        memory: "256Mi"
+        cpu: "50m"
+  redis:
+    enabled: true
+    replicaCount: 1
+    image:
+      repository: redis
+      tag: "7-alpine"
+      pullPolicy: IfNotPresent
+    resources:
+      limits:
+        memory: "256Mi"
+        cpu: "100m"
+      requests:
+        memory: "128Mi"
+        cpu: "50m"
+  grafana:
+    enabled: true
+    replicaCount: 1
+    image:
+      repository: grafana/grafana
+      tag: "latest"
+      pullPolicy: IfNotPresent
+    resources:
+      limits:
+        memory: "512Mi"
+        cpu: "200m"
+      requests:
+        memory: "256Mi"
+        cpu: "50m"
+  prometheus:
+    enabled: true
+    replicaCount: 1
+    image:
+      repository: prom/prometheus
+      tag: "latest"
+      pullPolicy: IfNotPresent
+    resources:
+      limits:
+        memory: "512Mi"
+        cpu: "200m"
+      requests:
+        memory: "256Mi"
+        cpu: "50m"
+
+# Centralized Persistence Configuration
+persistence:
+  n8n:
+    enabled: true
+    accessMode: ReadWriteOnce
+    size: 5Gi
+    storageClass: ""
+  mysql:
+    enabled: true
+    accessMode: ReadWriteOnce
+    size: 5Gi
+    storageClass: ""
+  postgresql:
+    enabled: true
+    accessMode: ReadWriteOnce
+    size: 5Gi
+    storageClass: ""
+  redis:
+    enabled: true
+    accessMode: ReadWriteOnce
+    size: 2Gi
+    storageClass: ""
+  grafana:
+    enabled: true
+    accessMode: ReadWriteOnce
+    size: 2Gi
+    storageClass: ""
+  prometheus:
+    enabled: true
+    accessMode: ReadWriteOnce
+    size: 5Gi
+    storageClass: ""
+
+# Centralized Services Configuration
+services:
+  n8n:
+    enabled: true
+    type: ClusterIP
+    port: 5678
+    targetPort: http
+  mysql:
+    enabled: true
+    type: ClusterIP
+    port: 3306
+    targetPort: mysql
+  postgresql:
+    enabled: true
+    type: ClusterIP
+    port: 5432
+    targetPort: postgres
+  redis:
+    enabled: true
+    type: ClusterIP
+    port: 6379
+    targetPort: redis
+  grafana:
+    enabled: true
+    type: ClusterIP
+    port: 3000
+    targetPort: http
+  prometheus:
+    enabled: true
+    type: ClusterIP
+    port: 9090
+    targetPort: http
 
 nodeSelector: {}
 tolerations: []
