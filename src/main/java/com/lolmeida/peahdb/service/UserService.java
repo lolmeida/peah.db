@@ -1,6 +1,7 @@
 package com.lolmeida.peahdb.service;
 
 import com.lolmeida.peahdb.dto.mapper.MapperService;
+import com.lolmeida.peahdb.dto.response.UserResponse;
 import com.lolmeida.peahdb.entity.User;
 import com.lolmeida.peahdb.repository.UserRepository;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -44,7 +45,7 @@ public class UserService {
     @Transactional
     public Response createOrUpdate(User entity) {
         userRepository.createOrUpdate(entity);
-        return result(Response.Status.CREATED, mapper.toUserResponse(entity));
+        return result(Response.Status.CREATED, toUserResponse(entity));
     }
 
     @Transactional
@@ -62,5 +63,18 @@ public class UserService {
                 .entity(entity)
                 .build();
     }
+
+
+    private UserResponse toUserResponse(User entity) {
+        return UserResponse.builder()
+                .id(entity.getId())
+                .username(entity.getUsername())
+                .email(entity.getEmail())
+                .createdAt(entity.getCreatedAt())
+                .updatedAt(entity.getUpdatedAt())
+                .build();
+    }
+
+
 
 }

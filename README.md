@@ -1,82 +1,74 @@
-# peah.db
+# peah.db API
 
-This project uses Quarkus, the Supersonic Subatomic Java Framework.
+API de exemplo construída com Quarkus, demonstrando uma arquitetura cloud-native moderna.
 
-If you want to learn more about Quarkus, please visit its website: <https://quarkus.io/>.
+## Tecnologias Utilizadas
 
-## Running the application in dev mode
+*   **Java 21+**
+*   **Quarkus:** Framework Java Supersonic Subatomic.
+*   **Maven:** Gerenciamento de dependências e build.
+*   **PostgreSQL:** Banco de dados relacional.
+*   **Flyway:** Ferramenta para migração de schema de banco de dados.
+*   **Docker:** Containerização da aplicação.
+*   **Kubernetes & Helm:** Orquestração e deploy em ambiente de nuvem.
+*   **GitHub Actions:** Automação de CI/CD (Build e Deploy).
 
-You can run your application in dev mode that enables live coding using:
+## Pré-requisitos
 
-```shell script
-./mvnw quarkus:dev
+*   JDK 21+ (Java Development Kit)
+*   Docker
+*   Maven 3.9+
+*   `kubectl` (para interagir com o Kubernetes)
+*   `helm` (para deploy no Kubernetes)
+
+## Como Executar (Ambiente de Desenvolvimento)
+
+1.  **Inicie um banco de dados PostgreSQL com Docker:**
+    ```bash
+    docker run --rm --name peah-db-dev -e POSTGRES_USER=user -e POSTGRES_PASSWORD=password -e POSTGRES_DB=peahdb -p 5432:5432 postgres:15
+    ```
+
+2.  **Execute a aplicação em modo de desenvolvimento (com hot-reload):**
+    ```bash
+    ./mvnw quarkus:dev
+    ```
+
+A API estará disponível em `http://localhost:8080`.
+
+## Como Testar
+
+Para executar a suíte de testes automatizados:
+
+```bash
+./mvnw test
 ```
 
-> **_NOTE:_**  Quarkus now ships with a Dev UI, which is available in dev mode only at <http://localhost:8080/q/dev/>.
+## Como Fazer o Build
 
-## Packaging and running the application
+Para compilar a aplicação e empacotá-la em um arquivo JAR:
 
-The application can be packaged using:
-
-```shell script
+```bash
 ./mvnw package
 ```
 
-It produces the `quarkus-run.jar` file in the `target/quarkus-app/` directory.
-Be aware that it’s not an _über-jar_ as the dependencies are copied into the `target/quarkus-app/lib/` directory.
+Para construir uma imagem Docker nativa (requer GraalVM):
 
-The application is now runnable using `java -jar target/quarkus-app/quarkus-run.jar`.
-
-If you want to build an _über-jar_, execute the following command:
-
-```shell script
-./mvnw package -Dquarkus.package.jar.type=uber-jar
-```
-
-The application, packaged as an _über-jar_, is now runnable using `java -jar target/*-runner.jar`.
-
-## Creating a native executable
-
-You can create a native executable using:
-
-```shell script
-./mvnw package -Dnative
-```
-
-Or, if you don't have GraalVM installed, you can run the native executable build in a container using:
-
-```shell script
+```bash
 ./mvnw package -Dnative -Dquarkus.native.container-build=true
 ```
 
-You can then execute your native executable with: `./target/peah.db-1.0.0-SNAPSHOT-runner`
+## Como Fazer o Deploy
 
-If you want to learn more about building native executables, please consult <https://quarkus.io/guides/maven-tooling>.
+O deploy é gerenciado pelo Helm Chart localizado no diretório `k8s/`.
 
-## Related Guides
+1.  **Empacote o Helm Chart:**
+    ```bash
+    helm package k8s/
+    ```
 
-- Micrometer Registry Prometheus ([guide](https://quarkus.io/guides/micrometer)): Enable Prometheus support for Micrometer
-- Hibernate Validator ([guide](https://quarkus.io/guides/validation)): Validate object properties (field, getter) and method parameters for your beans (REST, CDI, Jakarta Persistence)
-- SmallRye OpenAPI ([guide](https://quarkus.io/guides/openapi-swaggerui)): Document your REST APIs with OpenAPI - comes with Swagger UI
-- REST Jackson ([guide](https://quarkus.io/guides/rest#json-serialisation)): Jackson serialization support for Quarkus REST. This extension is not compatible with the quarkus-resteasy extension, or any of the extensions that depend on it
-- Micrometer OpenTelemetry Bridge ([guide](https://quarkus.io/guides/telemetry-micrometer-to-opentelemetry)): Micrometer registry implemented by the OpenTelemetry SDK
-- SmallRye Health ([guide](https://quarkus.io/guides/smallrye-health)): Monitor service health
-- JDBC Driver - PostgreSQL ([guide](https://quarkus.io/guides/datasource)): Connect to the PostgreSQL database via JDBC
+2.  **Faça o deploy no seu cluster Kubernetes:**
+    ```bash
+    helm upgrade --install peah-db ./peah-db-0.1.0.tgz --namespace seu-namespace
+    ```
 
-## Provided Code
-
-### REST
-
-Easily start your REST Web Services
-
-[Related guide section...](https://quarkus.io/guides/getting-started-reactive#reactive-jax-rs-resources)
-
-### SmallRye Health
-
-Monitor your application's health using SmallRye Health
-
-[Related guide section...](https://quarkus.io/guides/smallrye-health)
-# Test trigger for CI/CD
-# Test new Docker Hub token
-# Test deploy with fixed SSH key
-# Test Docker Hub token with Read/Write/Delete permissions
+O processo de build e deploy é automatizado via GitHub Actions. Veja os arquivos em `.github/workflows`.

@@ -1,4 +1,8 @@
 #!/bin/bash
+#
+# Script para deploy manual/local no servidor 'n8n'.
+# O deploy automatizado para produção é feito via GitHub Actions (.github/workflows/deploy.yml).
+#
 
 # Deploy script for peah.db
 # Usage: ./deploy.sh [image-tag]
