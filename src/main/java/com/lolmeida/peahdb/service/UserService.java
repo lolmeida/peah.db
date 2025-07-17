@@ -45,7 +45,7 @@ public class UserService {
     @Transactional
     public Response createOrUpdate(User entity) {
         userRepository.createOrUpdate(entity);
-        return result(Response.Status.CREATED, toUserResponse(entity));
+        return result(Response.Status.CREATED, mapper.toUserResponse(entity));
     }
 
     @Transactional
