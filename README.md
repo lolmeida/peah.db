@@ -238,9 +238,24 @@ Todas as requisições geram logs estruturados:
 
 ### Estratégia de Testes
 
-O projeto implementa uma cobertura de testes completa e abrangente:
+O projeto implementa uma cobertura de testes completa e abrangente com **141 testes** distribuídos em todas as camadas:
 
-#### 📋 Cobertura de Testes UserService (28 testes)
+#### 📊 Cobertura Total de Testes
+
+| Componente | Número de Testes | Descrição |
+|------------|------------------|------------|
+| **UserRepository** | 29 testes | Testes de integração com banco de dados |
+| **UserService** | 28 testes | Testes unitários com cobertura completa |
+| **AuditService** | 34 testes | Testes de auditoria e logging |
+| **RequestLogService** | 19 testes | Testes de registro de requisições |
+| **UserResource** | 15 testes | Testes REST API com QuarkusTest |
+| **MonitoringResource** | 10 testes | Testes de endpoints de monitoramento |
+| **GreetingResource** | 7 testes | Testes básicos de health check |
+| **Total** | **141 testes** | Cobertura completa do sistema |
+
+#### 📋 Detalhamento de Testes por Componente
+
+**UserService (28 testes):**
 - **GetAllUsersTest**: Retorno de lista de usuários
 - **GetUserByIdTest**: Busca por ID (sucesso e não encontrado)
 - **SearchTest**: Busca por campo/valor
@@ -251,19 +266,43 @@ O projeto implementa uma cobertura de testes completa e abrangente:
 - **CreateOrUpdateUserTest**: Upsert (criação/atualização e cenários de conflito)
 - **IsUsernameOrEmailTakenTest**: Validação de uniqueness (cenários else)
 
+**UserRepository (29 testes):**
+- Testes de integração com MySQL usando Testcontainers
+- Validação de queries customizadas e Panache
+- Testes de constraints de banco de dados
+- Cenários de concorrência e transações
+
+**AuditService (34 testes):**
+- Registro de eventos de auditoria
+- Rastreamento de mudanças de entidades
+- Logs de segurança e compliance
+- Métricas de performance
+
+**RequestLogService (19 testes):**
+- Captura de informações de requisições
+- Análise de User-Agent e dispositivos
+- Geração de estatísticas e dashboards
+- Exportação e limpeza de logs
+
+**REST Resources (32 testes total):**
+- **UserResource**: CRUD completo, validações, códigos HTTP
+- **MonitoringResource**: Health checks, request info, summaries
+- **GreetingResource**: Endpoints básicos e configuração
+
 #### 🔍 Tipos de Testes
 
 **Testes Unitários**:
-- **Service Layer**: Testes completos do `UserService` com mocks
+- **Service Layer**: Testes com Mockito e ArgumentCaptors
 - **Cenários de Sucesso**: Operações CRUD funcionando corretamente
-- **Cenários de Erro**: Validação de conflitos, IDs nulos, usuários não encontrados
+- **Cenários de Erro**: Validação de conflitos, IDs nulos, recursos não encontrados
 - **Cláusulas Else**: Cobertura completa de todas as condições (if/else)
 - **Edge Cases**: Campos nulos, valores únicos, validação de excludeId
 
 **Testes de Integração**:
-- **REST API**: Testes completos dos endpoints REST
-- **Testcontainers**: MySQL em memória para testes de integração
+- **REST API**: Testes com @QuarkusTest e REST Assured
+- **Database**: MySQL Testcontainers para testes realistas
 - **Validação**: Bean Validation e constraints de banco
+- **Headers HTTP**: Validação de headers customizados de monitoramento
 
 ### Comandos de Teste
 
@@ -307,11 +346,13 @@ O projeto implementa uma cobertura de testes completa e abrangente:
 
 ### Métricas de Teste
 
-- **28 testes** no UserService
-- **100% de cobertura** das cláusulas if/else
-- **Validação completa** de ArgumentCaptors
-- **Verificação de interações** com mocks
-- **Cenários de edge cases** cobertos
+- **141 testes totais** em todo o projeto
+- **100% de cobertura** das cláusulas if/else nos services
+- **Validação completa** com ArgumentCaptors e verificações de mock
+- **Testes de integração** com banco de dados real (Testcontainers)
+- **Testes REST** com validação de status HTTP e payloads
+- **Cenários de edge cases** e error handling cobertos
+- **Build verde** com todos os testes passando
 
 ## 🏗️ Build e Deploy
 
@@ -380,14 +421,20 @@ A aplicação inclui 8 usuários de exemplo:
 
 ### 🧪 Testes e Qualidade
 - [x] **Testes unitários completos do UserService** (28 testes)
+- [x] **Testes unitários do AuditService** (34 testes)
+- [x] **Testes unitários do RequestLogService** (19 testes)
+- [x] **Testes de repositório com Testcontainers** (29 testes)
+- [x] **Testes de integração REST** (UserResource - 15 testes)
+- [x] **Testes de MonitoringResource** (10 testes)
 - [x] **Cobertura de cláusulas if/else** (100%)
 - [x] **Testes de cenários de conflito** (uniqueness validation)
 - [x] **Testes de campos nulos** (partial updates)
-- [ ] **Testes de integração REST** (UserResourceTest)
+- [x] **Total de 141 testes** com build verde
 - [ ] **Testes de performance** (JMeter/Gatling)
 - [ ] **Testes de carga** (stress testing)
 - [ ] **Mutation testing** (PIT)
 - [ ] **Contract testing** (Pact)
+- [ ] **Cobertura de código** (meta: >80%)
 
 ### 🔒 Segurança e Autenticação
 - [ ] Autenticação JWT

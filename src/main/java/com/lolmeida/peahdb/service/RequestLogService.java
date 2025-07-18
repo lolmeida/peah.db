@@ -181,6 +181,98 @@ public class RequestLogService {
     }
 
     /**
+     * Get all logs
+     */
+    public List<RequestInfo> getAllLogs() {
+        return new ArrayList<>(requestLogs);
+    }
+
+    /**
+     * Get logs by browser
+     */
+    public List<RequestInfo> getLogsByBrowser(String browser) {
+        return requestLogs.stream()
+                .filter(req -> req.getBrowserName() != null && req.getBrowserName().equalsIgnoreCase(browser))
+                .sorted((a, b) -> b.getTimestamp().compareTo(a.getTimestamp()))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get logs by OS
+     */
+    public List<RequestInfo> getLogsByOS(String os) {
+        return requestLogs.stream()
+                .filter(req -> req.getOperatingSystem() != null && req.getOperatingSystem().equalsIgnoreCase(os))
+                .sorted((a, b) -> b.getTimestamp().compareTo(a.getTimestamp()))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get logs by device
+     */
+    public List<RequestInfo> getLogsByDevice(String device) {
+        return requestLogs.stream()
+                .filter(req -> req.getDeviceType() != null && req.getDeviceType().equalsIgnoreCase(device))
+                .sorted((a, b) -> b.getTimestamp().compareTo(a.getTimestamp()))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get logs by status (wrapper for existing method)
+     */
+    public List<RequestInfo> getLogsByStatus(int status) {
+        return getRequestsByStatus(status);
+    }
+
+    /**
+     * Get logs by IP
+     */
+    public List<RequestInfo> getLogsByIP(String ip) {
+        return requestLogs.stream()
+                .filter(req -> req.getUserIp() != null && req.getUserIp().equals(ip))
+                .sorted((a, b) -> b.getTimestamp().compareTo(a.getTimestamp()))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get dashboard data
+     */
+    public Map<String, Object> getDashboard() {
+        Map<String, Object> dashboard = new HashMap<>();
+        Map<String, Object> stats = getStatistics();
+        
+        dashboard.put("totalRequests", stats.get("totalRequests"));
+        dashboard.put("averageResponseTime", getAverageResponseTime());
+        dashboard.put("topBrowsers", getTopBrowsers());
+        dashboard.put("topOS", getTopOS());
+        dashboard.put("recentRequests", getRecentRequests(10));
+        
+        return dashboard;
+    }
+
+    /**
+     * Get statistics (wrapper for existing method)
+     */
+    public Map<String, Object> getStats() {
+        return getStatistics();
+    }
+
+    /**
+     * Search logs
+     */
+    public List<RequestInfo> searchLogs(String query) {
+        return requestLogs.stream()
+                .filter(req -> 
+                    (req.getRequestUri() != null && req.getRequestUri().contains(query)) ||
+                    (req.getHttpMethod() != null && req.getHttpMethod().contains(query)) ||
+                    (req.getUserIp() != null && req.getUserIp().contains(query)) ||
+                    (req.getBrowserName() != null && req.getBrowserName().contains(query))
+                )
+                .sorted((a, b) -> b.getTimestamp().compareTo(a.getTimestamp()))
+                .collect(Collectors.toList());
+    }
+
+    /**
      * Clear all logs (for testing)
      */
     public void clearLogs() {
@@ -191,6 +283,49 @@ public class RequestLogService {
         osCounts.clear();
         performanceMetrics.clear();
         Log.info("🧹 Cleared all request logs");
+    }
+
+    /**
+     * Get average response time
+     */
+    private Double getAverageResponseTime() {
+        return requestLogs.stream()
+                .filter(req -> req.getDuration() != null)
+                .mapToLong(RequestInfo::getDuration)
+                .average()
+                .orElse(0.0);
+    }
+
+    /**
+     * Get top browsers
+     */
+    private List<Map<String, Object>> getTopBrowsers() {
+        return browserCounts.entrySet().stream()
+                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+                .limit(5)
+                .map(entry -> {
+                    Map<String, Object> browser = new HashMap<>();
+                    browser.put("browser", entry.getKey());
+                    browser.put("count", entry.getValue());
+                    return browser;
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get top operating systems
+     */
+    private List<Map<String, Object>> getTopOS() {
+        return osCounts.entrySet().stream()
+                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+                .limit(5)
+                .map(entry -> {
+                    Map<String, Object> os = new HashMap<>();
+                    os.put("os", entry.getKey());
+                    os.put("count", entry.getValue());
+                    return os;
+                })
+                .collect(Collectors.toList());
     }
 
     /**

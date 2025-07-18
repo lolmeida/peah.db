@@ -31,6 +31,36 @@ public class LogsResource {
     RequestLogService requestLogService;
 
     @GET
+    @Operation(
+        summary = "Get all request logs",
+        description = "Retrieve all request logs stored in the system"
+    )
+    @APIResponses({
+        @APIResponse(
+            responseCode = "200",
+            description = "All logs retrieved successfully",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(type = SchemaType.ARRAY)
+            )
+        ),
+        @APIResponse(
+            responseCode = "500",
+            description = "Internal server error"
+        )
+    })
+    public Response getAllLogs() {
+        try {
+            List<RequestInfo> logs = requestLogService.getAllLogs();
+            return Response.ok(logs).build();
+        } catch (Exception e) {
+            return Response.serverError()
+                    .entity(Map.of("error", "Failed to fetch logs: " + e.getMessage()))
+                    .build();
+        }
+    }
+
+    @GET
     @Path("/recent")
     @Operation(
         summary = "Get recent request logs",

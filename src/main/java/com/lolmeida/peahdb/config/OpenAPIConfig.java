@@ -89,7 +89,7 @@ import jakarta.ws.rs.core.Application;
             description = "Development server"
         ),
         @Server(
-            url = "https://api.peahdb.com",
+            url = "https://peahdb.lolmeida.com",
             description = "Production server"
         ),
         @Server(

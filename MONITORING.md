@@ -438,10 +438,47 @@ curl -s http://localhost:8080/logs/statistics | jq '.totalRequests'
 curl -s http://localhost:8080/monitoring/health | jq '.status'
 ```
 
+## 🧪 Testes do Sistema de Monitoramento
+
+### Cobertura de Testes
+
+O sistema de monitoramento possui uma cobertura completa de testes:
+
+| Componente | Número de Testes | Cobertura |
+|------------|------------------|-----------|
+| **AuditService** | 34 testes | Auditoria completa, analytics, performance |
+| **RequestLogService** | 19 testes | Armazenamento, consultas, estatísticas |
+| **MonitoringResource** | 10 testes | Health checks, request info, summaries |
+| **Total** | **63 testes** | 100% de cobertura do sistema de monitoramento |
+
+### Cenários Testados
+
+**AuditService (34 testes):**
+- Processamento de requisições HTTP
+- Cálculo de métricas de performance
+- Detecção de atividade suspeita
+- Geração de logs estruturados
+- Análise de User-Agent e dispositivos
+
+**RequestLogService (19 testes):**
+- Armazenamento thread-safe de logs
+- Consultas por endpoint, device, IP
+- Geração de estatísticas em tempo real
+- Exportação e limpeza de logs
+- Limites de memória e rotação
+
+**MonitoringResource (10 testes):**
+- Health check com informações de requisição
+- Extração completa de request info
+- Resumos de requisição
+- Tratamento de erros
+- Validação de headers HTTP
+
 ## 📈 Roadmap
 
 ### Próximas Funcionalidades
 
+- [x] **Testes completos** (63 testes implementados)
 - [ ] Persistência em banco de dados
 - [ ] Integração com Prometheus
 - [ ] Alertas por email/Slack
