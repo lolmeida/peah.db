@@ -9,7 +9,8 @@ Documentação técnica completa do sistema avançado de monitoramento, auditori
 - **Dashboard Principal**: https://peah-db.lolmeida.com/logs/dashboard
 - **Swagger UI**: https://peah-db.lolmeida.com/api-docs/
 - **Health Check**: https://peah-db.lolmeida.com/q/health
-- **Métricas**: https://peah-db.lolmeida.com/logs/statistics
+- **Quarkus Metrics**: https://peah-db.lolmeida.com/q/metrics
+- **Métricas Customizadas**: https://peah-db.lolmeida.com/logs/statistics
 
 ### Acesso ao Sistema
 
@@ -17,7 +18,10 @@ Documentação técnica completa do sistema avançado de monitoramento, auditori
 # Dashboard completo
 curl -s https://peah-db.lolmeida.com/logs/dashboard | jq .
 
-# Estatísticas de uso
+# Métricas do Quarkus (Prometheus format)
+curl -s https://peah-db.lolmeida.com/q/metrics
+
+# Estatísticas de uso customizadas
 curl -s https://peah-db.lolmeida.com/logs/statistics | jq .
 
 # Logs recentes
@@ -25,6 +29,39 @@ curl -s https://peah-db.lolmeida.com/logs/recent?limit=10 | jq .
 
 # Performance metrics
 curl -s https://peah-db.lolmeida.com/logs/performance | jq .
+```
+
+## 📊 Métricas do Quarkus
+
+O endpoint `/q/metrics` expõe métricas no formato Prometheus, incluindo:
+
+### Métricas Básicas
+- **application_info**: Informações da aplicação
+- **jvm_memory_used_bytes**: Uso de memória JVM
+- **jvm_threads_current**: Número de threads ativas
+- **http_requests_total**: Total de requisições HTTP
+- **http_request_duration_seconds**: Duração das requisições
+
+### Métricas de Database
+- **hikaricp_connections**: Conexões do pool de base de dados
+- **hikaricp_connections_active**: Conexões ativas
+- **hikaricp_connections_idle**: Conexões inativas
+- **hikaricp_connections_pending**: Conexões pendentes
+
+### Métricas de Sistema
+- **system_cpu_usage**: Uso de CPU do sistema
+- **process_cpu_usage**: Uso de CPU do processo
+- **system_load_average_1m**: Load average do sistema
+
+### Exemplo de Uso
+```bash
+# Todas as métricas
+curl -s https://peah-db.lolmeida.com/q/metrics
+
+# Filtrar métricas específicas
+curl -s https://peah-db.lolmeida.com/q/metrics | grep jvm_memory
+curl -s https://peah-db.lolmeida.com/q/metrics | grep http_requests
+curl -s https://peah-db.lolmeida.com/q/metrics | grep hikaricp
 ```
 
 ## 🏗️ Arquitetura do Sistema

@@ -58,6 +58,7 @@ Todas as respostas incluem headers informativos:
 - **API Base**: https://peah-db.lolmeida.com
 - **Swagger UI**: https://peah-db.lolmeida.com/api-docs/
 - **Health Check**: https://peah-db.lolmeida.com/q/health
+- **Metrics**: https://peah-db.lolmeida.com/q/metrics
 - **Dashboard**: https://peah-db.lolmeida.com/logs/dashboard
 - **OpenAPI Spec**: https://peah-db.lolmeida.com/q/openapi
 
@@ -266,6 +267,12 @@ curl https://peah-db.lolmeida.com/api-docs/
 | `GET` | `/q/health/live` | Liveness probe |
 | `GET` | `/q/health/ready` | Readiness probe |
 
+### 📊 Métricas
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| `GET` | `/q/metrics` | Métricas do Quarkus (formato Prometheus) |
+
 ## 🔧 Configuração
 
 ### 📋 Profiles Disponíveis
@@ -420,12 +427,14 @@ Este projeto está sob a licença MIT - veja o arquivo [LICENSE](LICENSE) para d
 ### 🌐 Produção
 - **Swagger UI**: https://peah-db.lolmeida.com/api-docs/
 - **Health Check**: https://peah-db.lolmeida.com/q/health
+- **Metrics**: https://peah-db.lolmeida.com/q/metrics
 - **Dashboard**: https://peah-db.lolmeida.com/logs/dashboard
 - **OpenAPI Spec**: https://peah-db.lolmeida.com/q/openapi
 
 ### 🖥️ Desenvolvimento Local
 - **Swagger UI**: http://localhost:8080/api-docs/
 - **Health Check**: http://localhost:8080/q/health
+- **Metrics**: http://localhost:8080/q/metrics
 - **Dashboard**: http://localhost:8080/logs/dashboard
 - **OpenAPI Spec**: http://localhost:8080/q/openapi
 - **Dev UI**: http://localhost:8080/q/dev (apenas em dev mode)
