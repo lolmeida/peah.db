@@ -42,7 +42,8 @@ Todas as respostas incluem headers informativos:
 - **Java 21+** - Linguagem principal
 - **Quarkus 3.24.3** - Framework supersônico
 - **Maven 3.9+** - Gerenciamento de dependências
-- **MySQL/PostgreSQL** - Banco de dados relacional
+- **PostgreSQL** - Banco de dados de produção
+- **MySQL** - Banco de dados de desenvolvimento (opcional)
 - **Flyway** - Migrações de schema
 - **MapStruct** - Mapeamento de DTOs
 - **Lombok** - Redução de boilerplate
@@ -50,6 +51,23 @@ Todas as respostas incluem headers informativos:
 - **Docker** - Containerização
 - **Kubernetes & Helm** - Orquestração
 - **GitHub Actions** - CI/CD
+
+## 🌐 Aplicação em Produção
+
+### 📍 URLs de Produção
+- **API Base**: https://peah-db.lolmeida.com
+- **Swagger UI**: https://peah-db.lolmeida.com/api-docs/
+- **Health Check**: https://peah-db.lolmeida.com/q/health
+- **Dashboard**: https://peah-db.lolmeida.com/logs/dashboard
+- **OpenAPI Spec**: https://peah-db.lolmeida.com/q/openapi
+
+### 🔧 Configuração de Produção
+- **Database**: PostgreSQL no cluster Kubernetes
+- **Namespace**: `lolmeida`
+- **Deployment**: Helm chart com configuração dinâmica
+- **Profile**: `prod` (ativado via `QUARKUS_PROFILE=prod`)
+- **SSL**: Certificado automático via Let's Encrypt
+- **Ingress**: Nginx com redirecionamento HTTPS
 
 ## 📁 Estrutura do Projeto
 
@@ -68,6 +86,15 @@ src/main/java/com/lolmeida/peahdb/
 ├── resource/           # Endpoints REST
 ├── service/            # Serviços de negócio
 └── util/               # Utilitários
+
+k8s/                     # Kubernetes & Helm
+├── templates/           # Templates Helm
+│   ├── deployment.yaml # Deployment da aplicação
+│   ├── service.yaml    # Service do Kubernetes
+│   ├── ingress.yaml    # Ingress para HTTPS
+│   └── secret.yaml     # Secret para credenciais
+├── values.yaml         # Valores de configuração
+└── Chart.yaml          # Metadata do chart
 ```
 
 ## 🔧 Pré-requisitos
@@ -116,6 +143,77 @@ docker run --rm --name peah-postgres \
 ./mvnw quarkus:dev -Dquarkus.profile=prod
 ```
 
+## ☸️ Deploy para Kubernetes
+
+### 🛠️ Configuração do Helm
+
+O projeto inclui um chart Helm completo para deploy em Kubernetes:
+
+```yaml
+# k8s/values.yaml
+database:
+  username: "n8n"
+  password: "postgres-n8n-changeme123"
+  url: "jdbc:postgresql://n8n-postgres:5432/n8n"
+  host: "n8n-postgres"
+  port: "5432"
+  name: "n8n"
+
+quarkus:
+  profile: "prod"
+
+image:
+  repository: "lolmeida/peah-db"
+  tag: "latest"
+  pullPolicy: "Always"
+```
+
+### 🚀 Deploy Manual
+
+```bash
+# Executa script de deploy
+./deploy.sh
+
+# Ou deploy manual com Helm
+helm upgrade --install peah-db ./k8s \
+  --namespace lolmeida \
+  --create-namespace \
+  --wait --timeout=300s
+```
+
+### 📋 Variáveis de Ambiente
+
+O deployment usa as seguintes variáveis de ambiente:
+
+```bash
+# Base de dados
+DB_HOST=n8n-postgres
+DB_PORT=5432  
+DB_NAME=n8n
+DB_USERNAME=n8n
+DB_PASSWORD=postgres-n8n-changeme123
+DB_URL=jdbc:postgresql://n8n-postgres:5432/n8n
+
+# Quarkus
+QUARKUS_PROFILE=prod
+```
+
+### 🔍 Verificação do Deploy
+
+```bash
+# Verifica status dos pods
+kubectl get pods -n lolmeida -l app.kubernetes.io/name=k8s
+
+# Verifica logs
+kubectl logs -n lolmeida -l app.kubernetes.io/name=k8s
+
+# Testa health check
+curl https://peah-db.lolmeida.com/q/health
+
+# Acessa Swagger UI
+curl https://peah-db.lolmeida.com/api-docs/
+```
+
 ## 📡 Endpoints da API
 
 ### 🔐 Usuários
@@ -143,266 +241,72 @@ docker run --rm --name peah-postgres \
 | `GET` | `/monitoring/health` | Health check com request info |
 | `GET` | `/monitoring/request-info` | Informações completas da requisição |
 | `GET` | `/monitoring/request-summary` | Resumo da requisição |
+| `GET` | `/monitoring/headers` | Headers da requisição |
+| `GET` | `/monitoring/uri-info` | Informações do URI |
 
 ### 📋 Logs e Analytics
 
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
-| `GET` | `/logs/recent` | Logs recentes |
+| `GET` | `/logs` | Todos os logs de requisições |
+| `GET` | `/logs/recent?limit=50` | Logs mais recentes |
+| `GET` | `/logs/slow?threshold=1000` | Requisições lentas |
+| `GET` | `/logs/status/{status}` | Logs por status HTTP |
+| `GET` | `/logs/endpoint/{endpoint}` | Logs por endpoint |
 | `GET` | `/logs/statistics` | Estatísticas de uso |
+| `GET` | `/logs/performance` | Métricas de performance |
 | `GET` | `/logs/dashboard` | Dashboard completo |
-| `DELETE` | `/logs/clear` | Limpa logs |
-| `GET` | `/logs/export` | Exporta logs em JSON |
+| `DELETE` | `/logs/clear` | Limpa todos os logs |
 
-### 🔍 Saúde e Documentação
+### 🏥 Health Checks
 
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
-| `GET` | `/q/health` | Health check padrão |
-| `GET` | `/q/swagger-ui` | Documentação Swagger |
-| `GET` | `/q/openapi` | Especificação OpenAPI |
-
-## 🧪 Exemplos de Uso
-
-### Criar Usuário
-
-```bash
-curl -X POST http://localhost:8080/users \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "novo_usuario",
-    "email": "novo@example.com",
-    "passwordHash": "$2a$10$exemplo123456789"
-  }'
-```
-
-### Atualizar Parcialmente
-
-```bash
-curl -X PATCH http://localhost:8080/users/1 \
-  -H "Content-Type: application/json" \
-  -d '{"email": "novo_email@example.com"}'
-```
-
-### Ver Headers de Monitoramento
-
-```bash
-curl -i http://localhost:8080/users/1
-```
-
-**Resposta:**
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-X-Request-ID: req_abc123
-X-Device-Type: Desktop
-X-Browser: Chrome 138.0.0.0
-X-OS: macOS 10.15.7
-X-User-Agent: Mozilla/5.0 (Macintosh...)
-X-Response-Time: 15ms
-X-IP: 127.0.0.1
-X-Timestamp: 2025-07-18T02:42:43.123
-```
-
-### Monitoramento com Diferentes Devices
-
-```bash
-# Simular iPhone
-curl -H "User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 14_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1" \
-  http://localhost:8080/users/1
-
-# Simular Android
-curl -H "User-Agent: Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Mobile Safari/537.36" \
-  http://localhost:8080/users/2
-```
-
-### Dashboard de Monitoramento
-
-```bash
-curl -s http://localhost:8080/logs/dashboard | jq .
-```
-
-## 📊 Logs Automáticos
-
-Todas as requisições geram logs estruturados:
-
-```
-🔍 Request: GET /users/1 from 127.0.0.1 (Chrome) - macOS 10.15.7 Desktop [req_abc123]
-📤 Response: GET /users/1 -> 200 (15ms) [req_abc123]
-🔍 AUDIT - Request Details: ID=req_abc123, Method=GET, URI=/users/1, IP=127.0.0.1, UserAgent=Mozilla/5.0..., Browser=Chrome 138.0.0.0, OS=macOS 10.15.7, Device=Desktop, Status=200, Duration=15ms
-⚡ PERFORMANCE - EXCELLENT: GET /users/1 took 15ms | IP=127.0.0.1, Device=Desktop
-📈 USAGE - Browser: Chrome, OS: macOS 10.15.7, Device: Desktop, Language: pt-PT
-```
-
-## 🧪 Testes
-
-### Estratégia de Testes
-
-O projeto implementa uma cobertura de testes completa e abrangente com **141 testes** distribuídos em todas as camadas:
-
-#### 📊 Cobertura Total de Testes
-
-| Componente | Número de Testes | Descrição |
-|------------|------------------|------------|
-| **UserRepository** | 29 testes | Testes de integração com banco de dados |
-| **UserService** | 28 testes | Testes unitários com cobertura completa |
-| **AuditService** | 34 testes | Testes de auditoria e logging |
-| **RequestLogService** | 19 testes | Testes de registro de requisições |
-| **UserResource** | 15 testes | Testes REST API com QuarkusTest |
-| **MonitoringResource** | 10 testes | Testes de endpoints de monitoramento |
-| **GreetingResource** | 7 testes | Testes básicos de health check |
-| **Total** | **141 testes** | Cobertura completa do sistema |
-
-#### 📋 Detalhamento de Testes por Componente
-
-**UserService (28 testes):**
-- **GetAllUsersTest**: Retorno de lista de usuários
-- **GetUserByIdTest**: Busca por ID (sucesso e não encontrado)
-- **SearchTest**: Busca por campo/valor
-- **CreateUserTest**: Criação de usuários (sucesso e conflitos)
-- **ReplaceUserTest**: Substituição completa (sucesso, não encontrado, conflitos)
-- **PartialUpdateUserTest**: Atualização parcial (sucesso, campos nulos, conflitos)
-- **DeleteUserTest**: Exclusão (sucesso e não encontrado)
-- **CreateOrUpdateUserTest**: Upsert (criação/atualização e cenários de conflito)
-- **IsUsernameOrEmailTakenTest**: Validação de uniqueness (cenários else)
-
-**UserRepository (29 testes):**
-- Testes de integração com MySQL usando Testcontainers
-- Validação de queries customizadas e Panache
-- Testes de constraints de banco de dados
-- Cenários de concorrência e transações
-
-**AuditService (34 testes):**
-- Registro de eventos de auditoria
-- Rastreamento de mudanças de entidades
-- Logs de segurança e compliance
-- Métricas de performance
-
-**RequestLogService (19 testes):**
-- Captura de informações de requisições
-- Análise de User-Agent e dispositivos
-- Geração de estatísticas e dashboards
-- Exportação e limpeza de logs
-
-**REST Resources (32 testes total):**
-- **UserResource**: CRUD completo, validações, códigos HTTP
-- **MonitoringResource**: Health checks, request info, summaries
-- **GreetingResource**: Endpoints básicos e configuração
-
-#### 🔍 Tipos de Testes
-
-**Testes Unitários**:
-- **Service Layer**: Testes com Mockito e ArgumentCaptors
-- **Cenários de Sucesso**: Operações CRUD funcionando corretamente
-- **Cenários de Erro**: Validação de conflitos, IDs nulos, recursos não encontrados
-- **Cláusulas Else**: Cobertura completa de todas as condições (if/else)
-- **Edge Cases**: Campos nulos, valores únicos, validação de excludeId
-
-**Testes de Integração**:
-- **REST API**: Testes com @QuarkusTest e REST Assured
-- **Database**: MySQL Testcontainers para testes realistas
-- **Validação**: Bean Validation e constraints de banco
-- **Headers HTTP**: Validação de headers customizados de monitoramento
-
-### Comandos de Teste
-
-```bash
-# Executar todos os testes
-./mvnw test
-
-# Executar testes específicos
-./mvnw test -Dtest=UserServiceTest
-./mvnw test -Dtest=UserResourceTest
-
-# Executar com coverage
-./mvnw test jacoco:report
-
-# Executar testes nativos
-./mvnw verify -Dnative
-
-# Executar testes de integração
-./mvnw verify -DskipITs=false
-```
-
-### Cobertura de Cenários
-
-#### ✅ Cenários de Sucesso
-- Criação de usuários únicos
-- Atualização total e parcial
-- Busca por ID e campo/valor
-- Exclusão de usuários existentes
-
-#### ❌ Cenários de Erro
-- Username/email já existentes
-- Usuário não encontrado
-- ID nulo em operações que requerem ID
-- Conflitos de uniqueness
-
-#### 🔄 Cenários Else/Condicionais
-- Operadores ternários em `partialUpdateUser`
-- Validação de uniqueness com `excludeId`
-- Lógica de criação vs atualização em `createOrUpdateUser`
-- Campos nulos mantendo valores existentes
-
-### Métricas de Teste
-
-- **141 testes totais** em todo o projeto
-- **100% de cobertura** das cláusulas if/else nos services
-- **Validação completa** com ArgumentCaptors e verificações de mock
-- **Testes de integração** com banco de dados real (Testcontainers)
-- **Testes REST** com validação de status HTTP e payloads
-- **Cenários de edge cases** e error handling cobertos
-- **Build verde** com todos os testes passando
-
-## 🏗️ Build e Deploy
-
-### Build Local
-
-```bash
-# Compilar aplicação
-./mvnw clean package
-
-# Build nativo (GraalVM)
-./mvnw package -Pnative
-
-# Build Docker
-docker build -f src/main/docker/Dockerfile.jvm -t peah-db .
-```
-
-### Deploy Kubernetes
-
-```bash
-# Deploy com Helm
-helm install peah-db ./k8s -n lolmeida
-
-# Verificar deploy
-kubectl get pods -n lolmeida
-kubectl get svc -n lolmeida
-```
+| `GET` | `/q/health` | Health check geral |
+| `GET` | `/q/health/live` | Liveness probe |
+| `GET` | `/q/health/ready` | Readiness probe |
 
 ## 🔧 Configuração
 
-### Variáveis de Ambiente
+### 📋 Profiles Disponíveis
 
-```env
-# Database
-QUARKUS_DATASOURCE_JDBC_URL=jdbc:mysql://localhost:3306/peahdb
-QUARKUS_DATASOURCE_USERNAME=user
-QUARKUS_DATASOURCE_PASSWORD=password
+| Profile | Descrição | Base de Dados |
+|---------|-----------|---------------|
+| `dev` | Desenvolvimento local | MySQL/Testcontainers |
+| `prod` | Produção | PostgreSQL |
+| `test` | Testes automatizados | H2 em memória |
 
-# Logging
-QUARKUS_LOG_LEVEL=INFO
-QUARKUS_LOG_CONSOLE_FORMAT=%d{HH:mm:ss} %-5p [%c{2.}] (%t) %s%e%n
+### 🗄️ Configuração de Base de Dados
 
-# Monitoring
-QUARKUS_SMALLRYE_OPENTRACING_ENABLED=true
+#### Development (MySQL)
+```properties
+quarkus.datasource.username=root
+quarkus.datasource.password=admin
+quarkus.datasource.jdbc.url=jdbc:mysql://localhost:3306/peahdb_dev
 ```
 
-### Perfis de Configuração
+#### Production (PostgreSQL)
+```properties
+%prod.quarkus.datasource.db-kind=postgresql
+%prod.quarkus.datasource.username=${DB_USERNAME}
+%prod.quarkus.datasource.password=${DB_PASSWORD}
+%prod.quarkus.datasource.jdbc.url=${DB_URL}
+```
 
-- **dev**: Desenvolvimento com H2/MySQL e hot-reload
-- **prod**: Produção com PostgreSQL e otimizações
-- **test**: Testes com H2 em memória
+### 🎯 Configuração Avançada
+
+```properties
+# Swagger UI
+quarkus.swagger-ui.always-include=true
+quarkus.swagger-ui.path=/api-docs
+
+# Health checks
+quarkus.smallrye-health.ui.always-include=true
+
+# Flyway
+quarkus.flyway.migrate-at-start=true
+quarkus.flyway.locations=classpath:db/migration
+```
 
 ## 🔐 Dados de Exemplo
 
@@ -416,6 +320,46 @@ A aplicação inclui 8 usuários de exemplo:
 6. **diana_prince** - diana.prince@email.com
 7. **test_user** - test@example.com
 8. **admin_user** - admin@peahdb.com
+
+## 🚨 Troubleshooting
+
+### 🔍 Problemas Comuns
+
+#### Pod em CreateContainerConfigError
+```bash
+# Verifica se o secret existe
+kubectl get secrets -n lolmeida | grep peah-db
+
+# Verifica o deployment
+kubectl describe deployment peah-db-k8s -n lolmeida
+```
+
+#### Conexão com Base de Dados
+```bash
+# Verifica se o PostgreSQL está acessível
+kubectl exec -n lolmeida deployment/peah-db-k8s -- \
+  curl -s http://localhost:8080/q/health
+```
+
+#### Swagger UI não carrega
+```bash
+# Verifica se o perfil prod está ativo
+kubectl exec -n lolmeida deployment/peah-db-k8s -- \
+  printenv | grep QUARKUS_PROFILE
+```
+
+### 📋 Logs de Debug
+
+```bash
+# Logs do pod
+kubectl logs -n lolmeida -l app.kubernetes.io/name=k8s -f
+
+# Logs do deployment
+kubectl describe deployment peah-db-k8s -n lolmeida
+
+# Eventos do namespace
+kubectl get events -n lolmeida --sort-by='.lastTimestamp'
+```
 
 ## 📝 Próximos Passos
 
@@ -449,10 +393,15 @@ A aplicação inclui 8 usuários de exemplo:
 - [ ] Distributed tracing
 
 ### 🚀 Infraestrutura
+- [x] **Deploy automatizado com Helm**
+- [x] **Configuração dinâmica via values.yaml**
+- [x] **Secrets management no Kubernetes**
+- [x] **Health checks avançados**
+- [x] **Ingress com SSL/TLS**
+- [x] **Swagger UI em produção**
 - [ ] Backup automatizado
 - [ ] Blue-green deployment
-- [ ] Documentação OpenAPI detalhada
-- [ ] Health checks avançados
+- [ ] Scaling automático (HPA)
 
 ## 🤝 Contribuição
 
@@ -468,7 +417,14 @@ Este projeto está sob a licença MIT - veja o arquivo [LICENSE](LICENSE) para d
 
 ## 🚀 Recursos Adicionais
 
-- **Swagger UI**: http://localhost:8080/q/swagger-ui
+### 🌐 Produção
+- **Swagger UI**: https://peah-db.lolmeida.com/api-docs/
+- **Health Check**: https://peah-db.lolmeida.com/q/health
+- **Dashboard**: https://peah-db.lolmeida.com/logs/dashboard
+- **OpenAPI Spec**: https://peah-db.lolmeida.com/q/openapi
+
+### 🖥️ Desenvolvimento Local
+- **Swagger UI**: http://localhost:8080/api-docs/
 - **Health Check**: http://localhost:8080/q/health
 - **Dashboard**: http://localhost:8080/logs/dashboard
 - **OpenAPI Spec**: http://localhost:8080/q/openapi
@@ -477,3 +433,5 @@ Este projeto está sob a licença MIT - veja o arquivo [LICENSE](LICENSE) para d
 ---
 
 **Desenvolvido com ❤️ usando Quarkus e Java 21**
+
+*Deploy em produção: https://peah-db.lolmeida.com*

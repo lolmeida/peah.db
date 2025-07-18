@@ -2,6 +2,31 @@
 
 Documentação técnica completa do sistema avançado de monitoramento, auditoria e detecção de dispositivos implementado na **peah.db API**.
 
+## 🌐 Ambiente de Produção
+
+### URLs de Produção
+- **API Base**: https://peah-db.lolmeida.com
+- **Dashboard Principal**: https://peah-db.lolmeida.com/logs/dashboard
+- **Swagger UI**: https://peah-db.lolmeida.com/api-docs/
+- **Health Check**: https://peah-db.lolmeida.com/q/health
+- **Métricas**: https://peah-db.lolmeida.com/logs/statistics
+
+### Acesso ao Sistema
+
+```bash
+# Dashboard completo
+curl -s https://peah-db.lolmeida.com/logs/dashboard | jq .
+
+# Estatísticas de uso
+curl -s https://peah-db.lolmeida.com/logs/statistics | jq .
+
+# Logs recentes
+curl -s https://peah-db.lolmeida.com/logs/recent?limit=10 | jq .
+
+# Performance metrics
+curl -s https://peah-db.lolmeida.com/logs/performance | jq .
+```
+
 ## 🏗️ Arquitetura do Sistema
 
 ### Componentes Principais

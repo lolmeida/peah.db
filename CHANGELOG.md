@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2025-07-18
+
+### Added
+- **Kubernetes & Helm deployment** with complete chart configuration
+- **Production environment** deployed at https://peah-db.lolmeida.com
+- **Secret management** with configurable database credentials via Helm values
+- **Database environment variables** (DB_HOST, DB_PORT, DB_NAME, DB_USERNAME, DB_PASSWORD)
+- **Configurable Quarkus profile** via QUARKUS_PROFILE environment variable
+- **Swagger UI in production** - enabled at https://peah-db.lolmeida.com/api-docs/
+- **Ingress configuration** with SSL/TLS certificates via Let's Encrypt
+- **Health check endpoints** for Kubernetes liveness and readiness probes
+- **Automated deployment script** (deploy.sh) with comprehensive logging
+
+### Fixed
+- **Database connection issues** in production environment
+- **Secret template** now uses dynamic naming (peah-db-k8s-secret)
+- **PostgreSQL configuration** with correct connection parameters
+- **Image pull policy** set to "Always" for latest image updates
+- **Datasource configuration** properly scoped to prod profile
+- **Environment variable resolution** for database connection strings
+
+### Changed
+- **Database configuration** moved from hardcoded values to environment variables
+- **Production profile** now uses PostgreSQL instead of MySQL
+- **Deployment strategy** changed from manual to Helm-based
+- **Documentation** updated with complete deployment and troubleshooting guide
+
+### Infrastructure
+- **Namespace**: lolmeida
+- **Deployment**: peah-db-k8s
+- **Service**: ClusterIP with port 8080
+- **Ingress**: nginx with HTTPS redirect
+- **Database**: PostgreSQL (n8n-postgres:5432/n8n)
+- **SSL**: Automatic certificate management
+
 ## [Unreleased]
 
 ### Added
