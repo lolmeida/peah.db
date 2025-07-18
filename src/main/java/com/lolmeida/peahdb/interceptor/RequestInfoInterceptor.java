@@ -71,6 +71,16 @@ public class RequestInfoInterceptor implements ContainerRequestFilter, Container
                 RequestInfo completeInfo = requestInfoExtractor.extractRequestInfo(
                         requestContext, duration, statusCode, responseSize);
                 
+                // Add device information to response headers
+                responseContext.getHeaders().add("X-Request-ID", completeInfo.getRequestId());
+                responseContext.getHeaders().add("X-Device-Type", completeInfo.getDeviceType());
+                responseContext.getHeaders().add("X-Browser", completeInfo.getBrowserName() + " " + completeInfo.getBrowserVersion());
+                responseContext.getHeaders().add("X-OS", completeInfo.getOperatingSystem());
+                responseContext.getHeaders().add("X-User-Agent", completeInfo.getUserAgent());
+                responseContext.getHeaders().add("X-Response-Time", completeInfo.getDuration() + "ms");
+                responseContext.getHeaders().add("X-IP", completeInfo.getUserIp());
+                responseContext.getHeaders().add("X-Timestamp", completeInfo.getTimestamp().toString());
+                
                 // Log the response
                 Log.infof("📤 Response: %s %s -> %d (%dms) [%s]",
                         completeInfo.getHttpMethod(),

@@ -3,11 +3,15 @@ package com.lolmeida.peahdb.service;
 import com.lolmeida.peahdb.dto.audit.RequestInfo;
 import io.quarkus.logging.Log;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 
 import java.util.concurrent.CompletableFuture;
 
 @ApplicationScoped
 public class AuditService {
+
+    @Inject
+    RequestLogService requestLogService;
 
     /**
      * Log request information for audit purposes
@@ -164,6 +168,9 @@ public class AuditService {
      */
     public void processCompleteAudit(RequestInfo requestInfo) {
         try {
+            // Store the request log for monitoring
+            requestLogService.storeRequest(requestInfo);
+            
             // Log basic request information
             logRequest(requestInfo);
             
