@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Database environment variables** (DB_HOST, DB_PORT, DB_NAME, DB_USERNAME, DB_PASSWORD)
 - **Configurable Quarkus profile** via QUARKUS_PROFILE environment variable
 - **Swagger UI in production** - enabled at https://peah-db.lolmeida.com/api-docs/
+- **Quarkus metrics endpoint** - available at https://peah-db.lolmeida.com/q/metrics
 - **Ingress configuration** with SSL/TLS certificates via Let's Encrypt
 - **Health check endpoints** for Kubernetes liveness and readiness probes
 - **Automated deployment script** (deploy.sh) with comprehensive logging
