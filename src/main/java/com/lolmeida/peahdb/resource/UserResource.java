@@ -1,8 +1,10 @@
 package com.lolmeida.peahdb.resource;
 
-import com.lolmeida.peahdb.entity.User;
+import com.lolmeida.peahdb.dto.request.UserRequest;
+import com.lolmeida.peahdb.dto.request.UserPatchRequest;
 import com.lolmeida.peahdb.service.UserService;
 import jakarta.inject.Inject;
+import jakarta.validation.Valid;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -17,35 +19,41 @@ public class UserResource {
 
     @GET
     public Response getAllUsers() {
-        return Response.ok()
-                .entity(userService.getAllUsers())
-                .build();
+        return userService.getAllUsers();
     }
 
     @GET
     @Path("/{id}")
-    public Response getUserById( Long id) {
-        return Response.ok()
-                .entity(userService.getUserById(id))
-                .build();
+    public Response getUserById(@PathParam("id") Long id) {
+        return userService.getUserById(id);
     }
 
     @GET
-    @Path("/{key}/{value}")
-    public Response search( String key, String value) {
+    @Path("/search/{key}/{value}")
+    public Response search(@PathParam("key") String key, @PathParam("value") String value) {
         return userService.search(key, value);
+    }
+
+    @POST
+    public Response createUser(@Valid UserRequest userRequest) {
+        return userService.createUser(userRequest);
+    }
+
+    @PATCH
+    @Path("/{id}")
+    public Response partialUpdateUser(@PathParam("id") Long id, @Valid UserPatchRequest patchRequest) {
+        return userService.partialUpdateUser(id, patchRequest);
+    }
+
+    @PUT
+    @Path("/{id}")
+    public Response replaceUser(@PathParam("id") Long id, @Valid UserRequest userRequest) {
+        return userService.replaceUser(id, userRequest);
     }
 
     @DELETE
     @Path("/{id}")
-    public  Response delete(Long id) {
+    public Response deleteUser(@PathParam("id") Long id) {
         return userService.delete(id);
     }
-
-    @PUT
-    public  Response createOrUpdate(User entity) {
-        return userService.createOrUpdate(entity);
-    }
-
-
 } 
