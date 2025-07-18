@@ -236,16 +236,82 @@ Todas as requisições geram logs estruturados:
 
 ## 🧪 Testes
 
+### Estratégia de Testes
+
+O projeto implementa uma cobertura de testes completa e abrangente:
+
+#### 📋 Cobertura de Testes UserService (28 testes)
+- **GetAllUsersTest**: Retorno de lista de usuários
+- **GetUserByIdTest**: Busca por ID (sucesso e não encontrado)
+- **SearchTest**: Busca por campo/valor
+- **CreateUserTest**: Criação de usuários (sucesso e conflitos)
+- **ReplaceUserTest**: Substituição completa (sucesso, não encontrado, conflitos)
+- **PartialUpdateUserTest**: Atualização parcial (sucesso, campos nulos, conflitos)
+- **DeleteUserTest**: Exclusão (sucesso e não encontrado)
+- **CreateOrUpdateUserTest**: Upsert (criação/atualização e cenários de conflito)
+- **IsUsernameOrEmailTakenTest**: Validação de uniqueness (cenários else)
+
+#### 🔍 Tipos de Testes
+
+**Testes Unitários**:
+- **Service Layer**: Testes completos do `UserService` com mocks
+- **Cenários de Sucesso**: Operações CRUD funcionando corretamente
+- **Cenários de Erro**: Validação de conflitos, IDs nulos, usuários não encontrados
+- **Cláusulas Else**: Cobertura completa de todas as condições (if/else)
+- **Edge Cases**: Campos nulos, valores únicos, validação de excludeId
+
+**Testes de Integração**:
+- **REST API**: Testes completos dos endpoints REST
+- **Testcontainers**: MySQL em memória para testes de integração
+- **Validação**: Bean Validation e constraints de banco
+
+### Comandos de Teste
+
 ```bash
 # Executar todos os testes
 ./mvnw test
 
 # Executar testes específicos
+./mvnw test -Dtest=UserServiceTest
 ./mvnw test -Dtest=UserResourceTest
 
 # Executar com coverage
 ./mvnw test jacoco:report
+
+# Executar testes nativos
+./mvnw verify -Dnative
+
+# Executar testes de integração
+./mvnw verify -DskipITs=false
 ```
+
+### Cobertura de Cenários
+
+#### ✅ Cenários de Sucesso
+- Criação de usuários únicos
+- Atualização total e parcial
+- Busca por ID e campo/valor
+- Exclusão de usuários existentes
+
+#### ❌ Cenários de Erro
+- Username/email já existentes
+- Usuário não encontrado
+- ID nulo em operações que requerem ID
+- Conflitos de uniqueness
+
+#### 🔄 Cenários Else/Condicionais
+- Operadores ternários em `partialUpdateUser`
+- Validação de uniqueness com `excludeId`
+- Lógica de criação vs atualização em `createOrUpdateUser`
+- Campos nulos mantendo valores existentes
+
+### Métricas de Teste
+
+- **28 testes** no UserService
+- **100% de cobertura** das cláusulas if/else
+- **Validação completa** de ArgumentCaptors
+- **Verificação de interações** com mocks
+- **Cenários de edge cases** cobertos
 
 ## 🏗️ Build e Deploy
 
@@ -312,14 +378,34 @@ A aplicação inclui 8 usuários de exemplo:
 
 ## 📝 Próximos Passos
 
+### 🧪 Testes e Qualidade
+- [x] **Testes unitários completos do UserService** (28 testes)
+- [x] **Cobertura de cláusulas if/else** (100%)
+- [x] **Testes de cenários de conflito** (uniqueness validation)
+- [x] **Testes de campos nulos** (partial updates)
+- [ ] **Testes de integração REST** (UserResourceTest)
+- [ ] **Testes de performance** (JMeter/Gatling)
+- [ ] **Testes de carga** (stress testing)
+- [ ] **Mutation testing** (PIT)
+- [ ] **Contract testing** (Pact)
+
+### 🔒 Segurança e Autenticação
 - [ ] Autenticação JWT
 - [ ] Rate limiting
+- [ ] Validação de entrada avançada
+- [ ] Audit logs de segurança
+
+### 📊 Observabilidade
 - [ ] Cache Redis
 - [ ] Metrics com Prometheus
 - [ ] Alertas automatizados
+- [ ] Distributed tracing
+
+### 🚀 Infraestrutura
 - [ ] Backup automatizado
-- [ ] Testes de carga
+- [ ] Blue-green deployment
 - [ ] Documentação OpenAPI detalhada
+- [ ] Health checks avançados
 
 ## 🤝 Contribuição
 

@@ -553,6 +553,90 @@ class UserServiceTest {
             assertEquals(userRequest.getUsername(), requestCaptor.getValue().getUsername());
             assertEquals(userId, idCaptor.getValue());
         }
+
+        @Test
+        @DisplayName("Should return CONFLICT when creating user with existing username")
+        void testCreateOrUpdateUserCreateConflictUsername() {
+            Long userId = 1L;
+            when(userRepository.findByIdOptional(userId)).thenReturn(Optional.empty()); // isCreating = true
+            when(userRepository.findByUsername("john_doe")).thenReturn(Optional.of(testUser));
+
+            Response response = userService.createOrUpdateUser(userId, userRequest);
+
+            assertEquals(Response.Status.CONFLICT.getStatusCode(), response.getStatus());
+            assertEquals("Username or email already exists", response.getEntity());
+            
+            verify(userRepository).findByIdOptional(userId);
+            verify(userRepository).findByUsername("john_doe");
+            verify(userRepository, never()).createOrUpdate(any());
+        }
+
+        @Test
+        @DisplayName("Should return CONFLICT when creating user with existing email")
+        void testCreateOrUpdateUserCreateConflictEmail() {
+            Long userId = 1L;
+            when(userRepository.findByIdOptional(userId)).thenReturn(Optional.empty()); // isCreating = true
+            when(userRepository.findByUsername("john_doe")).thenReturn(Optional.empty());
+            when(userRepository.findByEmail("john.doe@email.com")).thenReturn(Optional.of(testUser));
+
+            Response response = userService.createOrUpdateUser(userId, userRequest);
+
+            assertEquals(Response.Status.CONFLICT.getStatusCode(), response.getStatus());
+            assertEquals("Username or email already exists", response.getEntity());
+            
+            verify(userRepository).findByIdOptional(userId);
+            verify(userRepository).findByUsername("john_doe");
+            verify(userRepository).findByEmail("john.doe@email.com");
+            verify(userRepository, never()).createOrUpdate(any());
+        }
+
+        @Test
+        @DisplayName("Should return CONFLICT when updating user with conflicting username")
+        void testCreateOrUpdateUserUpdateConflictUsername() {
+            Long userId = 1L;
+            User otherUser = User.builder()
+                    .id(2L)
+                    .username("john_doe")
+                    .email("other@email.com")
+                    .build();
+
+            when(userRepository.findByIdOptional(userId)).thenReturn(Optional.of(testUser)); // isCreating = false
+            when(userRepository.findByUsername("john_doe")).thenReturn(Optional.of(otherUser));
+
+            Response response = userService.createOrUpdateUser(userId, userRequest);
+
+            assertEquals(Response.Status.CONFLICT.getStatusCode(), response.getStatus());
+            assertEquals("Username or email already exists", response.getEntity());
+            
+            verify(userRepository).findByIdOptional(userId);
+            verify(userRepository).findByUsername("john_doe");
+            verify(userRepository, never()).createOrUpdate(any());
+        }
+
+        @Test
+        @DisplayName("Should return CONFLICT when updating user with conflicting email")
+        void testCreateOrUpdateUserUpdateConflictEmail() {
+            Long userId = 1L;
+            User otherUser = User.builder()
+                    .id(2L)
+                    .username("other_user")
+                    .email("john.doe@email.com")
+                    .build();
+
+            when(userRepository.findByIdOptional(userId)).thenReturn(Optional.of(testUser)); // isCreating = false
+            when(userRepository.findByUsername("john_doe")).thenReturn(Optional.of(testUser));
+            when(userRepository.findByEmail("john.doe@email.com")).thenReturn(Optional.of(otherUser));
+
+            Response response = userService.createOrUpdateUser(userId, userRequest);
+
+            assertEquals(Response.Status.CONFLICT.getStatusCode(), response.getStatus());
+            assertEquals("Username or email already exists", response.getEntity());
+            
+            verify(userRepository).findByIdOptional(userId);
+            verify(userRepository).findByUsername("john_doe");
+            verify(userRepository).findByEmail("john.doe@email.com");
+            verify(userRepository, never()).createOrUpdate(any());
+        }
     }
 
     @Nested

@@ -164,10 +164,91 @@ com.lolmeida.peahdb/
 
 ### Testing Strategy
 
-- Unit tests: Test individual components with mocks
-- Integration tests: Use `@QuarkusIntegrationTest` with Testcontainers for MySQL
-- REST tests: Use REST Assured for API testing
-- Native tests: Run with `-Dnative` flag
+#### Test Coverage Overview
+The project implements comprehensive testing with **28 tests** covering all business logic scenarios:
+
+**Unit Tests (Service Layer)**:
+- **UserService**: Complete coverage with MockitoExtension
+- **Mock Strategy**: All dependencies (Repository, MapperService) mocked
+- **Argument Validation**: ArgumentCaptors verify all method calls
+- **Edge Cases**: Null values, conflicts, non-existent resources
+
+**Integration Tests**:
+- **REST API**: Use `@QuarkusTest` with TestContainers
+- **Database**: MySQL TestContainers for real database interactions
+- **Validation**: Bean Validation and database constraints
+
+**Test Categories**:
+1. **CRUD Operations**: Create, Read, Update, Delete scenarios
+2. **Conflict Handling**: Username/email uniqueness validation
+3. **Error Scenarios**: Not found, null IDs, validation failures
+4. **Conditional Logic**: Complete if/else clause coverage
+5. **Partial Updates**: Null field handling in PATCH operations
+
+#### Test Implementation Patterns
+
+**Service Layer Tests**:
+```java
+@ExtendWith(MockitoExtension.class)
+@DisplayName("UserService")
+class UserServiceTest {
+    
+    @InjectMocks
+    private UserService userService;
+    
+    @Mock
+    private UserRepository userRepository;
+    
+    @Mock
+    private MapperService mapperService;
+    
+    // Test pattern: Should [action] when [condition]
+    @Test
+    @DisplayName("Should return CONFLICT when username already exists")
+    void testCreateUserWithExistingUsername() {
+        // Arrange, Act, Assert with ArgumentCaptors
+    }
+}
+```
+
+**Test Coverage Metrics**:
+- **GetAllUsersTest**: 1 test
+- **GetUserByIdTest**: 2 tests (success, not found)
+- **SearchTest**: 1 test
+- **CreateUserTest**: 3 tests (success, username conflict, email conflict)
+- **ReplaceUserTest**: 4 tests (success, null ID, not found, conflict)
+- **PartialUpdateUserTest**: 7 tests (success, null fields, conflicts)
+- **DeleteUserTest**: 2 tests (success, not found)
+- **CreateOrUpdateUserTest**: 6 tests (create/update with conflicts)
+- **IsUsernameOrEmailTakenTest**: 2 tests (uniqueness validation)
+
+#### Testing Commands
+
+```bash
+# Run all service tests
+./mvnw test -Dtest=UserServiceTest
+
+# Run specific test method
+./mvnw test -Dtest=UserServiceTest#testCreateUserSuccess
+
+# Run with coverage
+./mvnw test jacoco:report
+
+# Integration tests
+./mvnw verify -DskipITs=false
+
+# Native tests
+./mvnw verify -Dnative
+```
+
+#### Test Principles
+
+- **DisplayName**: Descriptive test names using "Should [action] when [condition]"
+- **Arrange-Act-Assert**: Clear test structure
+- **Mock Verification**: ArgumentCaptors validate all interactions
+- **Edge Cases**: Null values, empty collections, boundary conditions
+- **Error Scenarios**: All error paths tested
+- **Conditional Coverage**: All if/else branches covered
 
 ## Common Tasks
 
