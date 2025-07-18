@@ -18,6 +18,9 @@ database:
   username: "n8n"
   password: "postgres-n8n-changeme123"
   url: "jdbc:postgresql://n8n-postgres:5432/n8n"
+  host: "n8n-postgres"
+  port: "5432"
+  name: "n8n"
 
 # Quarkus configuration
 quarkus:
