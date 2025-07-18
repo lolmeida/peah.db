@@ -1,6 +1,7 @@
 package com.lolmeida.peahdb.util;
 
 import com.lolmeida.peahdb.dto.audit.RequestInfo;
+import io.vertx.ext.web.RoutingContext;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.core.MultivaluedMap;
@@ -66,7 +67,7 @@ public class RequestInfoExtractor {
      * Extract user IP address from request headers
      */
     private String extractUserIp(ContainerRequestContext requestContext) {
-        // Check for forwarded headers first
+        // Check for forwarded headers first (proxy/load balancer scenario)
         String ip = getHeader(requestContext, "X-Forwarded-For");
         if (ip != null && !ip.isEmpty() && !"unknown".equalsIgnoreCase(ip)) {
             // X-Forwarded-For can contain multiple IPs, take the first one
@@ -88,8 +89,21 @@ public class RequestInfoExtractor {
             return ip;
         }
         
-        // Fallback to remote address (not available in JAX-RS context)
-        return "unknown";
+        // Try to get real IP from Vert.x routing context
+        try {
+            RoutingContext routingContext = (RoutingContext) requestContext.getProperty("io.vertx.ext.web.RoutingContext");
+            if (routingContext != null && routingContext.request() != null) {
+                String remoteAddress = routingContext.request().remoteAddress().host();
+                if (remoteAddress != null && !remoteAddress.isEmpty()) {
+                    return remoteAddress;
+                }
+            }
+        } catch (Exception e) {
+            // Ignore if routing context not available
+        }
+        
+        // Fallback to localhost for local development
+        return "127.0.0.1";
     }
     
     /**
