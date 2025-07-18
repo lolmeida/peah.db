@@ -95,6 +95,8 @@
         <scope>provided</scope>
     </dependency>
     
+    <!-- Servlet API for request information extraction -->
+    
     <!-- Lombok (com cuidado no Quarkus) -->
     <dependency>
         <groupId>org.projectlombok</groupId>
