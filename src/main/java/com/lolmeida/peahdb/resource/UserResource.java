@@ -31,23 +31,7 @@ public class UserResource {
     }
 
     @GET
-    @Path("/username/{username}")
-    public Response getUserByUsername( String username) {
-        return Response.ok()
-                .entity(userService.getAllUsers())
-                .build();
-    }
-
-    @GET
-    @Path("/email/{email}")
-    public Response getUserByEmail( String email) {
-        return Response.ok()
-                .entity(userService.getAllUsers())
-                .build();
-    }
-
-    @GET
-    @Path("/search/{key}/{value}")
+    @Path("/{key}/{value}")
     public Response search( String key, String value) {
         return userService.search(key, value);
     }
