@@ -63,18 +63,4 @@ public class UserService {
                 .entity(entity)
                 .build();
     }
-
-
-    private UserResponse toUserResponse(User entity) {
-        return UserResponse.builder()
-                .id(entity.getId())
-                .username(entity.getUsername())
-                .email(entity.getEmail())
-                .createdAt(entity.getCreatedAt())
-                .updatedAt(entity.getUpdatedAt())
-                .build();
-    }
-
-
-
 }

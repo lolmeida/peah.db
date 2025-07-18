@@ -8,7 +8,7 @@ import org.mapstruct.*;
 
 
 @Mapper(
-        componentModel = "cdi",
+        componentModel = MappingConstants.ComponentModel.JAKARTA_CDI,
         nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE
 )
 
