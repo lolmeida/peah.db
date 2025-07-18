@@ -19,6 +19,10 @@ database:
   password: "postgres-n8n-changeme123"
   url: "jdbc:postgresql://n8n-postgres:5432/n8n"
 
+# Quarkus configuration
+quarkus:
+  profile: "prod"
+
 # This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
 imagePullSecrets: []
 # This is to override the chart name.
