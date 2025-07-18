@@ -47,10 +47,8 @@ public class UserService {
                     .build();
         }
 
-        // Convert DTO to entity
         User entity = mapper.toUser(userRequest);
         
-        // Set timestamps for new user
         LocalDateTime now = LocalDateTime.now();
         entity.setCreatedAt(now);
         entity.setUpdatedAt(now);
@@ -71,7 +69,6 @@ public class UserService {
                     .build();
         }
 
-        // Check if user exists
         Optional<User> existingUser = userRepository.findByIdOptional(id);
         if (existingUser.isEmpty()) {
             return Response.status(Response.Status.NOT_FOUND)
@@ -79,14 +76,12 @@ public class UserService {
                     .build();
         }
 
-        // Check for unique constraint violations (excluding current user)
         if (isUsernameOrEmailTaken(userRequest.getUsername(), userRequest.getEmail(), id)) {
             return Response.status(Response.Status.CONFLICT)
                     .entity("Username or email already exists")
                     .build();
         }
 
-        // Convert DTO to entity with ID using MapStruct
         User entity = mapper.toUserWithId(userRequest, id);
         entity.setUpdatedAt(LocalDateTime.now());
         entity.setCreatedAt(existingUser.get().getCreatedAt()); // Keep original createdAt
@@ -107,7 +102,6 @@ public class UserService {
                     .build();
         }
 
-        // Check if user exists
         Optional<User> existingUserOpt = userRepository.findByIdOptional(id);
         if (existingUserOpt.isEmpty()) {
             return Response.status(Response.Status.NOT_FOUND)
@@ -117,7 +111,6 @@ public class UserService {
 
         User existingUser = existingUserOpt.get();
 
-        // Check for unique constraint violations if username/email are being updated
         String newUsername = patchRequest.getUsername() != null ? patchRequest.getUsername() : existingUser.getUsername();
         String newEmail = patchRequest.getEmail() != null ? patchRequest.getEmail() : existingUser.getEmail();
         
@@ -127,10 +120,8 @@ public class UserService {
                     .build();
         }
 
-        // Apply partial updates using mapper
         mapper.updateUserFromPatch(patchRequest, existingUser);
         
-        // Always update the timestamp
         existingUser.setUpdatedAt(LocalDateTime.now());
         
         userRepository.createOrUpdate(existingUser);
@@ -149,7 +140,6 @@ public class UserService {
         boolean isCreating = existingUser.isEmpty();
 
         if (isCreating) {
-            // Create new user with specified ID
             if (isUsernameOrEmailTaken(userRequest.getUsername(), userRequest.getEmail(), null)) {
                 return Response.status(Response.Status.CONFLICT)
                         .entity("Username or email already exists")
@@ -164,7 +154,6 @@ public class UserService {
             userRepository.createOrUpdate(entity);
             return result(Response.Status.CREATED, mapper.toUserResponse(entity));
         } else {
-            // Update existing user
             if (isUsernameOrEmailTaken(userRequest.getUsername(), userRequest.getEmail(), id)) {
                 return Response.status(Response.Status.CONFLICT)
                         .entity("Username or email already exists")
@@ -189,19 +178,13 @@ public class UserService {
     }
 
     private boolean isUsernameOrEmailTaken(String username, String email, Long excludeId) {
-        // Check username
         Optional<User> userByUsername = userRepository.findByUsername(username);
         if (userByUsername.isPresent() && !userByUsername.get().getId().equals(excludeId)) {
             return true;
         }
 
-        // Check email
         Optional<User> userByEmail = userRepository.findByEmail(email);
-        if (userByEmail.isPresent() && !userByEmail.get().getId().equals(excludeId)) {
-            return true;
-        }
-
-        return false;
+        return userByEmail.isPresent() && !userByEmail.get().getId().equals(excludeId);
     }
 
     private Response result (Response.Status status, Object entity) {
