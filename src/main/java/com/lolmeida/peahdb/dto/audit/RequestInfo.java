@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
+
 import java.time.LocalDateTime;
 import java.util.Map;
 
@@ -12,41 +14,86 @@ import java.util.Map;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Schema(
+    name = "RequestInfo",
+    description = "Comprehensive request information including device detection, performance metrics, and client details",
+    example = """
+    {
+      "userIp": "127.0.0.1",
+      "realIp": "127.0.0.1",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+      "httpMethod": "GET",
+      "requestUri": "/users/1",
+      "queryString": "debug=true",
+      "referer": "https://example.com/dashboard",
+      "contentType": "application/json",
+      "acceptLanguage": "pt-PT,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+      "sessionId": "sess_abc123",
+      "timestamp": "2025-07-18T10:30:00",
+      "requestId": "req_abc123",
+      "serverName": "localhost",
+      "serverPort": 8080,
+      "duration": 25,
+      "responseStatus": 200,
+      "responseSize": 1024,
+      "isSuccess": true,
+      "browserName": "Chrome",
+      "browserVersion": "138.0.0.0",
+      "operatingSystem": "macOS 10.15.7",
+      "deviceType": "Desktop",
+      "country": "Portugal",
+      "city": "Lisbon",
+      "authenticatedUser": "john_doe",
+      "userRoles": ["USER"],
+      "errorMessage": null,
+      "customHeaders": {
+        "X-Custom-Header": "custom-value"
+      }
+    }
+    """
+)
 public class RequestInfo {
     
-    /**
-     * IP address of the client making the request
-     */
+    @Schema(
+        description = "IP address of the client making the request",
+        example = "127.0.0.1"
+    )
     private String userIp;
     
-    /**
-     * Real IP address when behind proxy/load balancer
-     */
+    @Schema(
+        description = "Real IP address when behind proxy/load balancer",
+        example = "127.0.0.1"
+    )
     private String realIp;
     
-    /**
-     * User agent string from the client
-     */
+    @Schema(
+        description = "User agent string from the client",
+        example = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"
+    )
     private String userAgent;
     
-    /**
-     * HTTP method (GET, POST, PUT, PATCH, DELETE, etc.)
-     */
+    @Schema(
+        description = "HTTP method (GET, POST, PUT, PATCH, DELETE, etc.)",
+        example = "GET"
+    )
     private String httpMethod;
     
-    /**
-     * Complete request URI
-     */
+    @Schema(
+        description = "Complete request URI",
+        example = "/users/1"
+    )
     private String requestUri;
     
-    /**
-     * Query parameters if any
-     */
+    @Schema(
+        description = "Query parameters if any",
+        example = "debug=true&format=json"
+    )
     private String queryString;
     
-    /**
-     * Referer header - where the request came from
-     */
+    @Schema(
+        description = "Referer header - where the request came from",
+        example = "https://example.com/dashboard"
+    )
     private String referer;
     
     /**
