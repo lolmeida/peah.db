@@ -42,7 +42,7 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           envFrom:
             - secretRef:
-                name: peah-db-postgres-secret
+                name: {{ include "k8s.fullname" . }}-secret
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
