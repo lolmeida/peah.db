@@ -372,6 +372,88 @@ class UserServiceTest {
             assertEquals("conflict@email.com", emailCaptor.getValue());
             verify(userRepository, never()).createOrUpdate(any());
         }
+
+        @Test
+        @DisplayName("Should keep existing values when patch request has null fields")
+        void testPartialUpdateUserWithNullFields() {
+            Long userId = 1L;
+            UserPatchRequest patchRequest = UserPatchRequest.builder()
+                    .username(null)
+                    .email(null)
+                    .build();
+
+            when(userRepository.findByIdOptional(userId)).thenReturn(Optional.of(testUser));
+            when(userRepository.findByUsername("john_doe")).thenReturn(Optional.of(testUser));
+            when(userRepository.findByEmail("john.doe@email.com")).thenReturn(Optional.of(testUser));
+            when(mapperService.toUserResponse(testUser)).thenReturn(userResponse);
+
+            Response response = userService.partialUpdateUser(userId, patchRequest);
+
+            assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+            assertEquals(userResponse, response.getEntity());
+
+            ArgumentCaptor<UserPatchRequest> patchCaptor = ArgumentCaptor.forClass(UserPatchRequest.class);
+            ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+            verify(mapperService).updateUserFromPatch(patchCaptor.capture(), userCaptor.capture());
+
+            assertEquals(patchRequest.getUsername(), patchCaptor.getValue().getUsername());
+            assertEquals(patchRequest.getEmail(), patchCaptor.getValue().getEmail());
+            assertEquals(testUser.getId(), userCaptor.getValue().getId());
+        }
+
+        @Test
+        @DisplayName("Should update only email when username is null")
+        void testPartialUpdateUserWithNullUsername() {
+            Long userId = 1L;
+            UserPatchRequest patchRequest = UserPatchRequest.builder()
+                    .username(null)
+                    .email("new_email@test.com")
+                    .build();
+
+            when(userRepository.findByIdOptional(userId)).thenReturn(Optional.of(testUser));
+            when(userRepository.findByUsername("john_doe")).thenReturn(Optional.of(testUser));
+            when(userRepository.findByEmail("new_email@test.com")).thenReturn(Optional.empty());
+            when(mapperService.toUserResponse(testUser)).thenReturn(userResponse);
+
+            Response response = userService.partialUpdateUser(userId, patchRequest);
+
+            assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+            assertEquals(userResponse, response.getEntity());
+
+            ArgumentCaptor<UserPatchRequest> patchCaptor = ArgumentCaptor.forClass(UserPatchRequest.class);
+            ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+            verify(mapperService).updateUserFromPatch(patchCaptor.capture(), userCaptor.capture());
+
+            assertNull(patchCaptor.getValue().getUsername());
+            assertEquals("new_email@test.com", patchCaptor.getValue().getEmail());
+        }
+
+        @Test
+        @DisplayName("Should update only username when email is null")
+        void testPartialUpdateUserWithNullEmail() {
+            Long userId = 1L;
+            UserPatchRequest patchRequest = UserPatchRequest.builder()
+                    .username("new_username")
+                    .email(null)
+                    .build();
+
+            when(userRepository.findByIdOptional(userId)).thenReturn(Optional.of(testUser));
+            when(userRepository.findByUsername("new_username")).thenReturn(Optional.empty());
+            when(userRepository.findByEmail("john.doe@email.com")).thenReturn(Optional.of(testUser));
+            when(mapperService.toUserResponse(testUser)).thenReturn(userResponse);
+
+            Response response = userService.partialUpdateUser(userId, patchRequest);
+
+            assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+            assertEquals(userResponse, response.getEntity());
+
+            ArgumentCaptor<UserPatchRequest> patchCaptor = ArgumentCaptor.forClass(UserPatchRequest.class);
+            ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+            verify(mapperService).updateUserFromPatch(patchCaptor.capture(), userCaptor.capture());
+
+            assertEquals("new_username", patchCaptor.getValue().getUsername());
+            assertNull(patchCaptor.getValue().getEmail());
+        }
     }
 
     @Nested
@@ -470,6 +552,61 @@ class UserServiceTest {
             
             assertEquals(userRequest.getUsername(), requestCaptor.getValue().getUsername());
             assertEquals(userId, idCaptor.getValue());
+        }
+    }
+
+    @Nested
+    class IsUsernameOrEmailTakenTest {
+        @Test
+        @DisplayName("Should return false when username and email are not taken")
+        void testIsUsernameOrEmailTakenReturnsFalse() {
+            Long userId = 1L;
+            UserRequest newUserRequest = UserRequest.builder()
+                    .username("unique_username")
+                    .email("unique@email.com")
+                    .passwordHash("$2a$10$hashedpassword")
+                    .build();
+
+            when(userRepository.findByIdOptional(userId)).thenReturn(Optional.of(testUser));
+            when(userRepository.findByUsername("unique_username")).thenReturn(Optional.empty());
+            when(userRepository.findByEmail("unique@email.com")).thenReturn(Optional.empty());
+            when(mapperService.toUserWithId(newUserRequest, userId)).thenReturn(testUser);
+            when(mapperService.toUserResponse(testUser)).thenReturn(userResponse);
+
+            Response response = userService.replaceUser(userId, newUserRequest);
+
+            assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+            assertEquals(userResponse, response.getEntity());
+
+            verify(userRepository).findByUsername("unique_username");
+            verify(userRepository).findByEmail("unique@email.com");
+            verify(userRepository).createOrUpdate(any(User.class));
+        }
+
+        @Test
+        @DisplayName("Should return false when username and email belong to same user being updated")
+        void testIsUsernameOrEmailTakenForSameUser() {
+            Long userId = 1L;
+            UserRequest sameUserRequest = UserRequest.builder()
+                    .username("john_doe")
+                    .email("john.doe@email.com")
+                    .passwordHash("$2a$10$hashedpassword")
+                    .build();
+
+            when(userRepository.findByIdOptional(userId)).thenReturn(Optional.of(testUser));
+            when(userRepository.findByUsername("john_doe")).thenReturn(Optional.of(testUser));
+            when(userRepository.findByEmail("john.doe@email.com")).thenReturn(Optional.of(testUser));
+            when(mapperService.toUserWithId(sameUserRequest, userId)).thenReturn(testUser);
+            when(mapperService.toUserResponse(testUser)).thenReturn(userResponse);
+
+            Response response = userService.replaceUser(userId, sameUserRequest);
+
+            assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+            assertEquals(userResponse, response.getEntity());
+
+            verify(userRepository).findByUsername("john_doe");
+            verify(userRepository).findByEmail("john.doe@email.com");
+            verify(userRepository).createOrUpdate(any(User.class));
         }
     }
 
