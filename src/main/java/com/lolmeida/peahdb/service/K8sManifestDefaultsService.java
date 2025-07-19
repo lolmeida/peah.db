@@ -6,6 +6,10 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.lolmeida.peahdb.entity.k8s.App;
 import com.lolmeida.peahdb.entity.k8s.AppManifest;
+import com.lolmeida.peahdb.entity.k8s.AuthDefault;
+import com.lolmeida.peahdb.entity.k8s.ManifestDefault;
+import com.lolmeida.peahdb.entity.k8s.ServiceCategory;
+import com.lolmeida.peahdb.repository.ManifestDefaultsRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
@@ -21,17 +25,18 @@ public class K8sManifestDefaultsService {
     @Inject
     ObjectMapper objectMapper;
 
-    // Manifests defaults for each category
-    private static final Map<String, List<ManifestDefault>> MANIFEST_DEFAULTS = new HashMap<>();
-    
-    static {
-        initializeDefaults();
-    }
+    @Inject
+    ManifestDefaultsRepository repository;
+
+    // Cache for frequently accessed data
+    private final Map<String, List<ManifestDefaultEntry>> manifestCache = new HashMap<>();
+    private final Map<String, List<AuthDefault>> authCache = new HashMap<>();
 
     /**
      * Represents a default manifest configuration for a service category
+     * This is a DTO wrapper around the database entity
      */
-    public static class ManifestDefault {
+    public static class ManifestDefaultEntry {
         public AppManifest.ManifestType manifestType;
         public boolean required;
         public int creationPriority;
@@ -39,8 +44,29 @@ public class K8sManifestDefaultsService {
         public String creationCondition;
         public Map<String, Object> defaultConfig;
 
-        public ManifestDefault(AppManifest.ManifestType manifestType, boolean required, int creationPriority, 
-                              String description, String creationCondition, Map<String, Object> defaultConfig) {
+        // Constructor from database entity
+        public ManifestDefaultEntry(ManifestDefault entity, ObjectMapper mapper) {
+            this.manifestType = entity.getManifestType();
+            this.required = entity.isRequired();
+            this.creationPriority = entity.getCreationPriority();
+            this.description = entity.getDescription();
+            this.creationCondition = entity.getCreationCondition();
+            
+            // Convert JsonNode to Map for compatibility
+            this.defaultConfig = new HashMap<>();
+            if (entity.hasDefaultConfig()) {
+                try {
+                    this.defaultConfig = mapper.convertValue(entity.getDefaultConfig(), Map.class);
+                } catch (Exception e) {
+                    // Log warning and use empty config
+                    this.defaultConfig = new HashMap<>();
+                }
+            }
+        }
+
+        // Legacy constructor for backwards compatibility
+        public ManifestDefaultEntry(AppManifest.ManifestType manifestType, boolean required, int creationPriority, 
+                                  String description, String creationCondition, Map<String, Object> defaultConfig) {
             this.manifestType = manifestType;
             this.required = required;
             this.creationPriority = creationPriority;
@@ -49,7 +75,7 @@ public class K8sManifestDefaultsService {
             this.defaultConfig = defaultConfig != null ? defaultConfig : new HashMap<>();
         }
 
-        public ManifestDefault(AppManifest.ManifestType manifestType, boolean required, int creationPriority, String description) {
+        public ManifestDefaultEntry(AppManifest.ManifestType manifestType, boolean required, int creationPriority, String description) {
             this(manifestType, required, creationPriority, description, null, new HashMap<>());
         }
     }
@@ -238,28 +264,49 @@ public class K8sManifestDefaultsService {
     }
 
     /**
-     * Get default manifests for a category
+     * Get default manifests for a category from database
      */
-    public List<ManifestDefault> getDefaultManifestsForCategory(String category) {
-        return MANIFEST_DEFAULTS.getOrDefault(category.toLowerCase(), MANIFEST_DEFAULTS.get("default"));
+    public List<ManifestDefaultEntry> getDefaultManifestsForCategory(String category) {
+        // Check cache first
+        String cacheKey = category.toLowerCase();
+        if (manifestCache.containsKey(cacheKey)) {
+            return manifestCache.get(cacheKey);
+        }
+        
+        // Load from database
+        List<ManifestDefault> dbDefaults = repository.findManifestDefaultsByCategory(cacheKey);
+        List<ManifestDefaultEntry> entries = new ArrayList<>();
+        
+        for (ManifestDefault dbDefault : dbDefaults) {
+            entries.add(new ManifestDefaultEntry(dbDefault, objectMapper));
+        }
+        
+        // If no defaults found, try fallback to "default" category
+        if (entries.isEmpty() && !"default".equals(cacheKey)) {
+            List<ManifestDefault> fallbackDefaults = repository.findManifestDefaultsByCategory("default");
+            for (ManifestDefault dbDefault : fallbackDefaults) {
+                entries.add(new ManifestDefaultEntry(dbDefault, objectMapper));
+            }
+        }
+        
+        // Cache the result
+        manifestCache.put(cacheKey, entries);
+        return entries;
     }
 
     /**
-     * Get all manifest types used
+     * Get all manifest types used from database
      */
     public Set<String> getAllManifestTypes() {
-        Set<String> types = new HashSet<>();
-        MANIFEST_DEFAULTS.values().forEach(manifests -> 
-            manifests.forEach(manifest -> types.add(manifest.manifestType.name()))
-        );
-        return types;
+        List<String> types = repository.getAllManifestTypes();
+        return new HashSet<>(types);
     }
 
     /**
-     * Get manifest by type and category
+     * Get manifest by type and category from database
      */
-    public Optional<ManifestDefault> getManifestDefault(String category, AppManifest.ManifestType manifestType) {
-        List<ManifestDefault> manifests = getDefaultManifestsForCategory(category);
+    public Optional<ManifestDefaultEntry> getManifestDefault(String category, AppManifest.ManifestType manifestType) {
+        List<ManifestDefaultEntry> manifests = getDefaultManifestsForCategory(category);
         return manifests.stream()
                 .filter(m -> m.manifestType == manifestType)
                 .findFirst();
@@ -268,24 +315,12 @@ public class K8sManifestDefaultsService {
     /**
      * Check if a manifest should be created based on conditions
      */
-    public boolean shouldCreateManifest(ManifestDefault manifest, JsonNode appConfig) {
+    public boolean shouldCreateManifest(ManifestDefaultEntry manifest, JsonNode appConfig) {
         if (manifest.creationCondition == null || manifest.creationCondition.isEmpty()) {
             return manifest.required;
         }
 
-        // Simple condition evaluation
-        String condition = manifest.creationCondition;
-        
-        if (condition.contains(".")) {
-            String[] parts = condition.split("\\.");
-            if (parts.length == 2) {
-                String parent = parts[0];
-                String child = parts[1];
-                return appConfig.path(parent).path(child).asBoolean(false);
-            }
-        }
-        
-        return appConfig.path(condition).asBoolean(false);
+        return evaluateManifestCondition(manifest.creationCondition, appConfig);
     }
 
     /**
@@ -356,70 +391,60 @@ public class K8sManifestDefaultsService {
     }
 
     /**
-     * Get default configuration for auth based on app category and auth type
+     * Get default configuration for auth based on app category and auth type from database
      */
     public JsonNode getDefaultAuthConfig(String category, String authType) {
-        ObjectNode authConfig = objectMapper.createObjectNode();
-        authConfig.put("enabled", true);
-        authConfig.put("type", authType);
-
-        switch (category.toLowerCase()) {
-            case "database":
-                switch (authType) {
-                    case "password":
-                        authConfig.put("username", "admin");
-                        authConfig.put("database", "main");
-                        authConfig.put("existingSecret", category + "-secret");
-                        authConfig.put("allowEmptyPassword", false);
-                        break;
-                }
-                break;
-            
-            case "monitoring":
-                switch (authType) {
-                    case "basic":
-                        authConfig.put("adminUser", "admin");
-                        authConfig.put("existingSecret", category + "-secret");
-                        authConfig.put("autoAssignOrgRole", "Viewer");
-                        authConfig.put("allowSignUp", false);
-                        break;
-                }
-                break;
-            
-            case "automation":
-                switch (authType) {
-                    case "email":
-                        ObjectNode defaultUser = authConfig.putObject("defaultUser");
-                        defaultUser.put("email", "admin@" + category + ".local");
-                        defaultUser.put("firstName", "Admin");
-                        defaultUser.put("lastName", "User");
-                        authConfig.put("existingSecret", category + "-secret");
-                        authConfig.put("enablePublicAPI", true);
-                        break;
-                }
-                break;
-            
-            case "api":
-                switch (authType) {
-                    case "jwt":
-                        ObjectNode jwt = authConfig.putObject("jwt");
-                        jwt.put("issuer", category + "-api");
-                        jwt.put("expirationTime", "24h");
-                        authConfig.put("existingSecret", category + "-auth-secret");
-                        
-                        ObjectNode cors = authConfig.putObject("cors");
-                        cors.put("enabled", true);
-                        ArrayNode allowedOrigins = cors.putArray("allowedOrigins");
-                        allowedOrigins.add("*");
-                        
-                        ObjectNode rateLimit = authConfig.putObject("rateLimit");
-                        rateLimit.put("enabled", true);
-                        rateLimit.put("requestsPerMinute", 100);
-                        break;
-                }
-                break;
+        // Check cache first
+        String cacheKey = category.toLowerCase() + "_" + authType.toLowerCase();
+        if (authCache.containsKey(cacheKey)) {
+            List<AuthDefault> cached = authCache.get(cacheKey);
+            if (!cached.isEmpty()) {
+                return cached.get(0).getDefaultConfig();
+            }
         }
+        
+        // Load from database
+        Optional<AuthDefault> authDefault = repository.findAuthDefault(category.toLowerCase(), authType.toLowerCase());
+        
+        if (authDefault.isPresent()) {
+            // Cache for future use
+            authCache.put(cacheKey, List.of(authDefault.get()));
+            return authDefault.get().getDefaultConfig();
+        }
+        
+        // Fallback to empty auth config
+        ObjectNode fallbackConfig = objectMapper.createObjectNode();
+        fallbackConfig.put("enabled", true);
+        fallbackConfig.put("type", authType);
+        return fallbackConfig;
+    }
 
-        return authConfig;
+    /**
+     * Get all available auth types for a category from database
+     */
+    public List<String> getAuthTypesForCategory(String category) {
+        return repository.getAuthTypesForCategory(category.toLowerCase());
+    }
+
+    /**
+     * Get all available service categories from database
+     */
+    public List<ServiceCategory> getAllServiceCategories() {
+        return repository.findAllActiveCategories();
+    }
+
+    /**
+     * Clear manifest cache (useful after database updates)
+     */
+    public void clearCache() {
+        manifestCache.clear();
+        authCache.clear();
+    }
+
+    /**
+     * Check if category exists in database
+     */
+    public boolean categoryExists(String categoryName) {
+        return repository.categoryExists(categoryName);
     }
 } 

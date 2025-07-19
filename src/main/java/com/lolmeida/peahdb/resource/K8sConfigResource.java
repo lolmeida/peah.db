@@ -33,6 +33,9 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 
 @Path("/api/config")
 @ApplicationScoped
@@ -534,7 +537,7 @@ public class K8sConfigResource {
     @Operation(summary = "Get default manifests for category", description = "Get the default Kubernetes manifests for a service category")
     @APIResponse(responseCode = "200", description = "Default manifests retrieved successfully")
     public Response getManifestDefaults(@PathParam("category") String category) {
-        List<K8sManifestDefaultsService.ManifestDefault> defaults = 
+        List<K8sManifestDefaultsService.ManifestDefaultEntry> defaults = 
             manifestDefaultsService.getDefaultManifestsForCategory(category);
         
         // Convert to a more REST-friendly format
@@ -562,14 +565,29 @@ public class K8sConfigResource {
     @GET
     @Path("/manifests/categories")
     @Produces(MediaType.APPLICATION_JSON)
-    @Operation(summary = "Get available manifest categories", description = "Get list of available service categories with manifest support")
+    @Operation(summary = "Get available manifest categories", description = "Get list of available service categories with manifest support from database")
     @APIResponse(responseCode = "200", description = "Categories retrieved successfully")
     public Response getManifestCategories() {
-        List<String> categories = Arrays.asList("database", "monitoring", "automation", "api", "default");
+        List<ServiceCategory> categories = manifestDefaultsService.getAllServiceCategories();
+        
+        // Convert to response format
+        List<Map<String, Object>> categoryList = categories.stream()
+            .map(cat -> {
+                Map<String, Object> info = new HashMap<>();
+                info.put("name", cat.getName());
+                info.put("displayName", cat.getDisplayName());
+                info.put("description", cat.getDescription());
+                info.put("icon", cat.getIcon());
+                info.put("color", cat.getColor());
+                info.put("active", cat.getIsActive());
+                return info;
+            })
+            .collect(Collectors.toList());
         
         Map<String, Object> response = new HashMap<>();
-        response.put("categories", categories);
-        response.put("description", "Available service categories for manifest defaults");
+        response.put("categories", categoryList);
+        response.put("totalCount", categoryList.size());
+        response.put("description", "Available service categories loaded from database");
         
         return Response.ok(response).build();
     }
@@ -585,6 +603,87 @@ public class K8sConfigResource {
         Map<String, Object> response = new HashMap<>();
         response.put("manifestTypes", types);
         response.put("totalCount", types.size());
+        
+        return Response.ok(response).build();
+    }
+
+    // ========== AUTH DEFAULTS ENDPOINTS ==========
+
+    @GET
+    @Path("/auth/defaults/{category}")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Get auth defaults for category", description = "Get available authentication configurations for a service category")
+    @APIResponse(responseCode = "200", description = "Auth defaults retrieved successfully")
+    public Response getAuthDefaults(@PathParam("category") String category) {
+        List<String> authTypes = manifestDefaultsService.getAuthTypesForCategory(category);
+        
+        // Get details for each auth type
+        List<Map<String, Object>> authDetails = authTypes.stream()
+            .map(authType -> {
+                Map<String, Object> details = new HashMap<>();
+                details.put("authType", authType);
+                details.put("defaultConfig", manifestDefaultsService.getDefaultAuthConfig(category, authType));
+                return details;
+            })
+            .collect(Collectors.toList());
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("category", category);
+        response.put("authTypes", authDetails);
+        response.put("totalCount", authDetails.size());
+        
+        return Response.ok(response).build();
+    }
+
+    @GET
+    @Path("/auth/defaults/{category}/{authType}")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Get specific auth config", description = "Get default authentication configuration for a specific category and auth type")
+    @APIResponse(responseCode = "200", description = "Auth config retrieved successfully")
+    @APIResponse(responseCode = "404", description = "Auth config not found")
+    public Response getAuthConfig(@PathParam("category") String category, @PathParam("authType") String authType) {
+        JsonNode authConfig = manifestDefaultsService.getDefaultAuthConfig(category, authType);
+        
+        if (authConfig == null || authConfig.isEmpty()) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity("Auth configuration not found for category: " + category + ", type: " + authType)
+                    .build();
+        }
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("category", category);
+        response.put("authType", authType);
+        response.put("defaultConfig", authConfig);
+        
+        return Response.ok(response).build();
+    }
+
+    // ========== CACHE MANAGEMENT ENDPOINTS ==========
+
+    @POST
+    @Path("/cache/clear")
+    @Operation(summary = "Clear manifest cache", description = "Clear the manifest and auth defaults cache to force reload from database")
+    @APIResponse(responseCode = "200", description = "Cache cleared successfully")
+    public Response clearCache() {
+        manifestDefaultsService.clearCache();
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "Manifest and auth defaults cache cleared successfully");
+        response.put("timestamp", LocalDateTime.now().toString());
+        
+        return Response.ok(response).build();
+    }
+
+    @GET
+    @Path("/cache/stats")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Get cache statistics", description = "Get information about cached manifest and auth defaults")
+    @APIResponse(responseCode = "200", description = "Cache stats retrieved successfully")
+    public Response getCacheStats() {
+        // This would be implemented to show cache hit rates, size, etc.
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "Cache statistics endpoint - to be implemented");
+        response.put("timestamp", LocalDateTime.now().toString());
         
         return Response.ok(response).build();
     }

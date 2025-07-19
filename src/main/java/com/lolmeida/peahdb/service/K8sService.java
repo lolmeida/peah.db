@@ -182,14 +182,14 @@ public class K8sService {
 
     private void generateAppManifestConfigurations(App app, ObjectNode appConfig) {
         // Get default manifests for this app category
-        List<K8sManifestDefaultsService.ManifestDefault> defaultManifests = 
+        List<K8sManifestDefaultsService.ManifestDefaultEntry> defaultManifests = 
             manifestDefaultsService.getDefaultManifestsForCategory(app.category);
         
         // Get existing manifests for this app (if any)
         List<AppManifest> existingManifests = repository.findAppManifestsByAppId(app.id);
         
         // Generate configurations for default manifests
-        for (K8sManifestDefaultsService.ManifestDefault defaultManifest : defaultManifests) {
+        for (K8sManifestDefaultsService.ManifestDefaultEntry defaultManifest : defaultManifests) {
             if (manifestDefaultsService.evaluateManifestCondition(defaultManifest.creationCondition, appConfig)) {
                 String manifestKey = defaultManifest.manifestType.name().toLowerCase();
                 
