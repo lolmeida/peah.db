@@ -24,6 +24,9 @@ public class K8sService {
     @Inject
     K8sRepository repository;
 
+    @Inject
+    K8sManifestDefaultsService manifestDefaultsService;
+
     public Response generateStackValues(Long envId, String stackName) {
         if (envId == null || stackName == null) {
             return BaseService.result(Response.Status.BAD_REQUEST, "Environment ID and Stack name cannot be null");
@@ -178,18 +181,44 @@ public class K8sService {
     }
 
     private void generateAppManifestConfigurations(App app, ObjectNode appConfig) {
-        // Get all required manifests for this app
-        List<AppManifest> manifests = repository.findAppManifestsByAppId(app.id);
-
-        for (AppManifest manifest : manifests) {
+        // Get default manifests for this app category
+        List<K8sManifestDefaultsService.ManifestDefault> defaultManifests = 
+            manifestDefaultsService.getDefaultManifestsForCategory(app.category);
+        
+        // Get existing manifests for this app (if any)
+        List<AppManifest> existingManifests = repository.findAppManifestsByAppId(app.id);
+        
+        // Generate configurations for default manifests
+        for (K8sManifestDefaultsService.ManifestDefault defaultManifest : defaultManifests) {
+            if (manifestDefaultsService.evaluateManifestCondition(defaultManifest.creationCondition, appConfig)) {
+                String manifestKey = defaultManifest.manifestType.name().toLowerCase();
+                
+                ObjectNode manifestConfig = appConfig.putObject(manifestKey);
+                manifestConfig.put("enabled", true);
+                
+                // Add default configuration from the manifest defaults service
+                if (!defaultManifest.defaultConfig.isEmpty()) {
+                    ObjectNode defaultConfigNode = objectMapper.valueToTree(defaultManifest.defaultConfig);
+                    manifestConfig.setAll(defaultConfigNode);
+                }
+                
+                // Add legacy manifest-specific defaults for backwards compatibility
+                addManifestDefaults(defaultManifest.manifestType, manifestConfig, app);
+            }
+        }
+        
+        // Process existing manifests (for apps that have custom manifests defined)
+        for (AppManifest manifest : existingManifests) {
             String manifestKey = manifest.getManifestTypeName().toLowerCase();
 
             // Only generate config for required manifests or those with conditions met
             if (manifest.isRequired() || shouldCreateManifest(manifest, appConfig)) {
-                ObjectNode manifestConfig = appConfig.putObject(manifestKey);
+                ObjectNode manifestConfig = appConfig.hasNonNull(manifestKey) ? 
+                    (ObjectNode) appConfig.get(manifestKey) : appConfig.putObject(manifestKey);
+                
                 manifestConfig.put("enabled", true);
 
-                // Add default manifest configuration if available
+                // Add custom manifest configuration if available
                 if (manifest.hasDefaultConfig()) {
                     manifestConfig.setAll((ObjectNode) manifest.defaultConfig);
                 }
@@ -203,43 +232,133 @@ public class K8sService {
     private boolean shouldCreateManifest(AppManifest manifest, ObjectNode appConfig) {
         if (manifest.creationCondition == null) return true;
 
-        // Simple condition evaluation (extend as needed)
-        switch (manifest.creationCondition) {
-            case "persistence.enabled":
-                return appConfig.path("persistence").path("enabled").asBoolean(false);
-            case "ingress.enabled":
-                return appConfig.path("ingress").path("enabled").asBoolean(true); // Default true for apps
-            case "hpa.enabled":
-                return appConfig.path("hpa").path("enabled").asBoolean(false);
-            default:
-                return true;
-        }
+        // Use the enhanced condition evaluation from manifest defaults service
+        return manifestDefaultsService.evaluateManifestCondition(manifest.creationCondition, appConfig);
     }
 
     private void addManifestDefaults(AppManifest.ManifestType manifestType, ObjectNode config, App app) {
         switch (manifestType) {
             case DEPLOYMENT:
-                config.put("replicaCount", 1);
-                config.put("imagePullPolicy", "IfNotPresent");
+                // Enhanced deployment configuration based on app category
+                if (!config.has("replicaCount")) {
+                    int defaultReplicas = "api".equals(app.category) ? 2 : 1;
+                    config.put("replicaCount", defaultReplicas);
+                }
+                if (!config.has("imagePullPolicy")) {
+                    config.put("imagePullPolicy", "IfNotPresent");
+                }
+                if (!config.has("restartPolicy")) {
+                    config.put("restartPolicy", "Always");
+                }
+                
+                // Add rolling update strategy for APIs
+                if ("api".equals(app.category) && !config.has("strategy")) {
+                    ObjectNode strategy = config.putObject("strategy");
+                    strategy.put("type", "RollingUpdate");
+                    ObjectNode rollingUpdate = strategy.putObject("rollingUpdate");
+                    rollingUpdate.put("maxSurge", 1);
+                    rollingUpdate.put("maxUnavailable", 0);
+                }
                 break;
+                
             case SERVICE:
-                config.put("type", "ClusterIP");
+                if (!config.has("type")) {
+                    config.put("type", "ClusterIP");
+                }
+                if (!config.has("sessionAffinity")) {
+                    config.put("sessionAffinity", "None");
+                }
                 break;
+                
             case INGRESS:
-                config.put("className", "nginx");
-                config.put("host", app.name + ".lolmeida.com");
-                ObjectNode annotations = config.putObject("annotations");
+                if (!config.has("className")) {
+                    config.put("className", "nginx");
+                }
+                if (!config.has("host")) {
+                    config.put("host", app.name + ".lolmeida.com");
+                }
+                
+                // Enhanced annotations based on app category
+                ObjectNode annotations = config.has("annotations") ? 
+                    (ObjectNode) config.get("annotations") : config.putObject("annotations");
+                
                 annotations.put("nginx.ingress.kubernetes.io/ssl-redirect", "true");
                 annotations.put("cert-manager.io/cluster-issuer", "letsencrypt-prod");
+                
+                // Add rate limiting for APIs
+                if ("api".equals(app.category)) {
+                    annotations.put("nginx.ingress.kubernetes.io/rate-limit", "100");
+                    annotations.put("nginx.ingress.kubernetes.io/rate-limit-window", "1m");
+                }
+                
+                // Add TLS configuration
+                if (!config.has("tls")) {
+                    ObjectNode tls = config.putObject("tls");
+                    tls.put("enabled", true);
+                }
                 break;
+                
             case PERSISTENT_VOLUME_CLAIM:
-                config.put("accessMode", "ReadWriteOnce");
-                config.put("size", "2Gi");
+                if (!config.has("accessMode")) {
+                    config.put("accessMode", "ReadWriteOnce");
+                }
+                if (!config.has("size")) {
+                    // Different default sizes based on app category
+                    String defaultSize = switch (app.category) {
+                        case "database" -> "10Gi";
+                        case "monitoring" -> "20Gi";
+                        case "automation" -> "5Gi";
+                        default -> "2Gi";
+                    };
+                    config.put("size", defaultSize);
+                }
+                if (!config.has("storageClass")) {
+                    config.put("storageClass", "default");
+                }
                 break;
+                
             case HPA:
-                config.put("minReplicas", 1);
-                config.put("maxReplicas", 2);
-                config.put("targetCPUUtilizationPercentage", 70);
+                if (!config.has("minReplicas")) {
+                    int minReplicas = "api".equals(app.category) ? 2 : 1;
+                    config.put("minReplicas", minReplicas);
+                }
+                if (!config.has("maxReplicas")) {
+                    int maxReplicas = "api".equals(app.category) ? 10 : 3;
+                    config.put("maxReplicas", maxReplicas);
+                }
+                if (!config.has("targetCPUUtilizationPercentage")) {
+                    config.put("targetCPUUtilizationPercentage", 70);
+                }
+                if ("api".equals(app.category) && !config.has("targetMemoryUtilizationPercentage")) {
+                    config.put("targetMemoryUtilizationPercentage", 80);
+                }
+                break;
+                
+            case SECRET:
+                if (!config.has("type")) {
+                    config.put("type", "Opaque");
+                }
+                if (!config.has("immutable")) {
+                    config.put("immutable", false);
+                }
+                break;
+                
+            case CONFIG_MAP:
+                if (!config.has("immutable")) {
+                    config.put("immutable", false);
+                }
+                break;
+                
+            case SERVICE_ACCOUNT:
+                if (!config.has("automountServiceAccountToken")) {
+                    config.put("automountServiceAccountToken", true);
+                }
+                break;
+                
+            case CLUSTER_ROLE:
+                if (!config.has("createBinding")) {
+                    config.put("createBinding", true);
+                }
                 break;
         }
     }

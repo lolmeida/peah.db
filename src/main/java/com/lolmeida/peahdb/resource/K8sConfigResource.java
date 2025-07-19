@@ -17,6 +17,7 @@ import com.lolmeida.peahdb.dto.mapper.MapperService;
 
 // Service imports
 import com.lolmeida.peahdb.service.K8sService;
+import com.lolmeida.peahdb.service.DeploymentService;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -48,6 +49,9 @@ public class K8sConfigResource {
 
     @Inject
     ObjectMapper objectMapper;
+
+    @Inject
+    K8sManifestDefaultsService manifestDefaultsService;
 
     private ObjectMapper yamlMapper;
 
@@ -481,14 +485,15 @@ public class K8sConfigResource {
         }
     }
 
-    // DEPLOY STACK
+    @Inject
+    DeploymentService deploymentService;
+
+    // DEPLOY STACK - Environment-specific deployment strategies
     @POST
     @Path("/environments/{envId}/stacks/{stackName}/deploy")
     @Produces(MediaType.APPLICATION_JSON)
     public Response deployStack(@PathParam("envId") Long envId,
                                @PathParam("stackName") String stackName) {
-        // For now, return a mock successful deployment response
-        // In the future, this would trigger actual Helm deployment
         Environment env = Environment.findById(envId);
         if (env == null) {
             return Response.status(Response.Status.NOT_FOUND)
@@ -509,12 +514,78 @@ public class K8sConfigResource {
                     .build();
         }
 
-        // Mock deployment response
-        String response = String.format(
-            "{\"status\": \"SUCCESS\", \"message\": \"Stack %s deployed successfully to %s\", \"deployedAt\": \"%s\"}",
-            stackName, env.name, java.time.Instant.now().toString()
-        );
+        // Execute environment-specific deployment strategy
+        DeploymentService.DeploymentResult result = deploymentService.deployStack(env, stack);
+        
+        if (result.success) {
+            return Response.ok(result.toJson()).build();
+        } else {
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity(result.toJson())
+                    .build();
+        }
+    }
 
+    // ========== MANIFEST DEFAULTS ENDPOINTS ==========
+
+    @GET
+    @Path("/manifests/defaults/{category}")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Get default manifests for category", description = "Get the default Kubernetes manifests for a service category")
+    @APIResponse(responseCode = "200", description = "Default manifests retrieved successfully")
+    public Response getManifestDefaults(@PathParam("category") String category) {
+        List<K8sManifestDefaultsService.ManifestDefault> defaults = 
+            manifestDefaultsService.getDefaultManifestsForCategory(category);
+        
+        // Convert to a more REST-friendly format
+        List<Map<String, Object>> manifestsInfo = defaults.stream()
+            .map(manifest -> {
+                Map<String, Object> info = new HashMap<>();
+                info.put("manifestType", manifest.manifestType.name());
+                info.put("required", manifest.required);
+                info.put("creationPriority", manifest.creationPriority);
+                info.put("description", manifest.description);
+                info.put("creationCondition", manifest.creationCondition);
+                info.put("defaultConfig", manifest.defaultConfig);
+                return info;
+            })
+            .collect(Collectors.toList());
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("category", category);
+        response.put("manifests", manifestsInfo);
+        response.put("totalCount", manifestsInfo.size());
+        
+        return Response.ok(response).build();
+    }
+
+    @GET
+    @Path("/manifests/categories")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Get available manifest categories", description = "Get list of available service categories with manifest support")
+    @APIResponse(responseCode = "200", description = "Categories retrieved successfully")
+    public Response getManifestCategories() {
+        List<String> categories = Arrays.asList("database", "monitoring", "automation", "api", "default");
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("categories", categories);
+        response.put("description", "Available service categories for manifest defaults");
+        
+        return Response.ok(response).build();
+    }
+
+    @GET
+    @Path("/manifests/types")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Get all manifest types", description = "Get all available Kubernetes manifest types")
+    @APIResponse(responseCode = "200", description = "Manifest types retrieved successfully")  
+    public Response getAllManifestTypes() {
+        Set<String> types = manifestDefaultsService.getAllManifestTypes();
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("manifestTypes", types);
+        response.put("totalCount", types.size());
+        
         return Response.ok(response).build();
     }
 }
