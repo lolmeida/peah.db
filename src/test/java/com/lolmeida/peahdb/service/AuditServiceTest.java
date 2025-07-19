@@ -1,6 +1,8 @@
-package com.lolmeida.peahdb.service;
+package com.lolmeida.service;
 
-import com.lolmeida.peahdb.dto.audit.RequestInfo;
+import com.lolmeida.dto.audit.RequestInfo;
+import com.lolmeida.service.AuditService;
+import com.lolmeida.service.RequestLogService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

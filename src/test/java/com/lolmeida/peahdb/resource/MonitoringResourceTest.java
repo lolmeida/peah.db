@@ -1,7 +1,7 @@
-package com.lolmeida.peahdb.resource;
+package com.lolmeida.resource;
 
-import com.lolmeida.peahdb.dto.audit.RequestInfo;
-import com.lolmeida.peahdb.util.RequestInfoExtractor;
+import com.lolmeida.dto.audit.RequestInfo;
+import com.lolmeida.util.RequestInfoExtractor;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;

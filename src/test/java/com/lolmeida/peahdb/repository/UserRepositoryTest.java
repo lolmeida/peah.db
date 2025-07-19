@@ -1,6 +1,7 @@
-package com.lolmeida.peahdb.repository;
+package com.lolmeida.repository;
 
-import com.lolmeida.peahdb.entity.User;
+import com.lolmeida.entity.User;
+import com.lolmeida.repository.UserRepository;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;

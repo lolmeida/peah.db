@@ -1,11 +1,12 @@
-package com.lolmeida.peahdb.service;
+package com.lolmeida.service;
 
-import com.lolmeida.peahdb.dto.mapper.MapperService;
-import com.lolmeida.peahdb.dto.request.UserPatchRequest;
-import com.lolmeida.peahdb.dto.request.UserRequest;
-import com.lolmeida.peahdb.dto.response.UserResponse;
-import com.lolmeida.peahdb.entity.User;
-import com.lolmeida.peahdb.repository.UserRepository;
+import com.lolmeida.dto.mapper.MapperService;
+import com.lolmeida.dto.request.UserPatchRequest;
+import com.lolmeida.dto.request.UserRequest;
+import com.lolmeida.dto.response.UserResponse;
+import com.lolmeida.entity.User;
+import com.lolmeida.repository.UserRepository;
+import com.lolmeida.service.UserService;
 import jakarta.ws.rs.core.Response;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;

@@ -1,8 +1,8 @@
-package com.lolmeida.peahdb.resource;
+package com.lolmeida.resource;
 
-import com.lolmeida.peahdb.dto.request.UserRequest;
-import com.lolmeida.peahdb.dto.response.UserResponse;
-import com.lolmeida.peahdb.service.UserService;
+import com.lolmeida.dto.request.UserRequest;
+import com.lolmeida.dto.response.UserResponse;
+import com.lolmeida.service.UserService;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;

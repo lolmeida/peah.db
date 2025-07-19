@@ -253,8 +253,8 @@ Configure logging levels in `application.properties`:
 quarkus.log.level=INFO
 
 # Enable debug logging for request info
-quarkus.log.category."com.lolmeida.peahdb.interceptor".level=DEBUG
-quarkus.log.category."com.lolmeida.peahdb.service.AuditService".level=DEBUG
+quarkus.log.category."com.lolmeida.interceptor".level=DEBUG
+quarkus.log.category."com.lolmeida.service.AuditService".level=DEBUG
 ```
 
 ## Security Considerations

@@ -1,4 +1,4 @@
-package com.lolmeida.peahdb.resource;
+package com.lolmeida.resource;
 
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
