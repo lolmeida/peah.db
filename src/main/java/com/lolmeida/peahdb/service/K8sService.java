@@ -8,28 +8,34 @@ import com.lolmeida.peahdb.entity.core.Environment;
 import com.lolmeida.peahdb.entity.core.Stack;
 import com.lolmeida.peahdb.entity.k8s.App;
 import com.lolmeida.peahdb.entity.k8s.AppManifest;
+import com.lolmeida.peahdb.repository.K8sRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 import java.util.List;
 
 @ApplicationScoped
-public class K8sValuesGeneratorService {
+public class K8sService {
 
     @Inject
     ObjectMapper objectMapper;
+
+    @Inject
+    K8sRepository repository;
 
     public JsonNode generateStackValues(Long envId, String stackName) {
         ObjectNode values = objectMapper.createObjectNode();
 
         // Global configuration
-        Environment env = Environment.findById(envId);
+        Environment env = repository.findEnvironmentById(envId).orElse(null);
+        if (env == null) return values;
+        
         ObjectNode global = values.putObject("global");
         global.put("namespace", env.name.equals("prod") ? "lolmeida" : env.name);
         global.put("timezone", "Europe/Lisbon");
 
         // Stack configuration
-        Stack stack = Stack.find("environment.id = ?1 and name = ?2", envId, stackName).firstResult();
+        Stack stack = repository.findStackByEnvironmentAndName(envId, stackName).orElse(null);
         if (stack == null) return values;
 
         // Stack-level flags
@@ -39,7 +45,7 @@ public class K8sValuesGeneratorService {
         ObjectNode stackApps = stackConfig.putObject("apps");
 
         // Apps configuration (sorted by deployment priority)
-        List<App> apps = App.find("stack.id = ?1 ORDER BY deploymentPriority, name", stack.id).list();
+        List<App> apps = repository.findAppsByStackId(stack.id);
         for (App app : apps) {
             stackApps.put(app.name, app.enabled);
 
@@ -82,7 +88,7 @@ public class K8sValuesGeneratorService {
 
     private void generateAppManifestConfigurations(App app, ObjectNode appConfig) {
         // Get all required manifests for this app
-        List<AppManifest> manifests = AppManifest.find("app.id = ?1 ORDER BY creationPriority", app.id).list();
+        List<AppManifest> manifests = repository.findAppManifestsByAppId(app.id);
 
         for (AppManifest manifest : manifests) {
             String manifestKey = manifest.getManifestTypeName().toLowerCase();

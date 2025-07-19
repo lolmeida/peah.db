@@ -16,7 +16,7 @@ import com.lolmeida.peahdb.dto.response.*;
 import com.lolmeida.peahdb.dto.mapper.MapperService;
 
 // Service imports
-import com.lolmeida.peahdb.service.K8sValuesGeneratorService;
+import com.lolmeida.peahdb.service.K8sService;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -41,7 +41,7 @@ import java.util.stream.Collectors;
 public class K8sConfigResource {
 
     @Inject
-    K8sValuesGeneratorService valuesGenerator;
+    K8sService valuesGenerator;
 
     @Inject
     MapperService mapperService;
