@@ -39,9 +39,7 @@ public class UserService {
     public Response createUser(UserRequest userRequest) {
         // Check for unique constraint violations
         if (isUsernameOrEmailTaken(userRequest.getUsername(), userRequest.getEmail(), null)) {
-            return Response.status(Response.Status.CONFLICT)
-                    .entity("Username or email already exists")
-                    .build();
+            return BaseService.result(Response.Status.CONFLICT, "Username or email already exists");
         }
 
         
@@ -60,21 +58,15 @@ public class UserService {
     @Transactional
     public Response replaceUser(Long id, UserRequest userRequest) {
         if (id == null) {
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity("User ID cannot be null")
-                    .build();
+            return BaseService.result(Response.Status.BAD_REQUEST, "User ID cannot be null");
         }
 
         if (userRepository.findByIdOptional(id).isEmpty()) {
-            return Response.status(Response.Status.NOT_FOUND)
-                    .entity("User with id " + id + " not found")
-                    .build();
+            return BaseService.result(Response.Status.NOT_FOUND, "User with id " + id + " not found");
         }
 
         if (isUsernameOrEmailTaken(userRequest.getUsername(), userRequest.getEmail(), id)) {
-            return Response.status(Response.Status.CONFLICT)
-                    .entity("Username or email already exists")
-                    .build();
+            return BaseService.result(Response.Status.CONFLICT, "Username or email already exists");
         }
 
         mapper.toUserWithId(userRequest, id).setUpdatedAt(LocalDateTime.now());
@@ -91,15 +83,11 @@ public class UserService {
     @Transactional
     public Response partialUpdateUser(Long id, UserPatchRequest patchRequest) {
         if (id == null) {
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity("User ID cannot be null")
-                    .build();
+            return BaseService.result(Response.Status.BAD_REQUEST, "User ID cannot be null");
         }
 
         if (userRepository.findByIdOptional(id).isEmpty()) {
-            return Response.status(Response.Status.NOT_FOUND)
-                    .entity("User with id " + id + " not found")
-                    .build();
+            return BaseService.result(Response.Status.NOT_FOUND, "User with id " + id + " not found");
         }
 
 
@@ -107,9 +95,7 @@ public class UserService {
         String newEmail = patchRequest.getEmail() != null ? patchRequest.getEmail() : userRepository.findByIdOptional(id).get().getEmail();
         
         if (isUsernameOrEmailTaken(newUsername, newEmail, id)) {
-            return Response.status(Response.Status.CONFLICT)
-                    .entity("Username or email already exists")
-                    .build();
+            return BaseService.result(Response.Status.CONFLICT, "Username or email already exists");
         }
 
         mapper.updateUserFromPatch(patchRequest, userRepository.findByIdOptional(id).get());
@@ -132,9 +118,7 @@ public class UserService {
 
         if (isCreating) {
             if (isUsernameOrEmailTaken(userRequest.getUsername(), userRequest.getEmail(), null)) {
-                return Response.status(Response.Status.CONFLICT)
-                        .entity("Username or email already exists")
-                        .build();
+                return BaseService.result(Response.Status.CONFLICT, "Username or email already exists");
             }
 
             LocalDateTime now = LocalDateTime.now();
@@ -145,9 +129,7 @@ public class UserService {
             return BaseService.result(Response.Status.CREATED, mapper.toUserResponse(mapper.toUserWithId(userRequest, id)));
         } else {
             if (isUsernameOrEmailTaken(userRequest.getUsername(), userRequest.getEmail(), id)) {
-                return Response.status(Response.Status.CONFLICT)
-                        .entity("Username or email already exists")
-                        .build();
+                return BaseService.result(Response.Status.CONFLICT, "Username or email already exists");
             }
 
             mapper.toUserWithId(userRequest, id).setUpdatedAt(LocalDateTime.now());
@@ -161,10 +143,13 @@ public class UserService {
     @Transactional
     public Response delete(long id) {
         if (userRepository.delete(id)) {
-            return Response.ok().entity("User deleted successfully").build();
+            return BaseService.result(Response.Status.OK, "User deleted successfully");
         }
-        return Response.status(Response.Status.NOT_FOUND).build();
+        return BaseService.result(Response.Status.NOT_FOUND, "User not found");
     }
+
+
+    // Helpers:
 
     private boolean isUsernameOrEmailTaken(String username, String email, Long excludeId) {
         if (userRepository.findByUsername(username).isPresent() && !userRepository.findByUsername(username).get().getId().equals(excludeId)) {

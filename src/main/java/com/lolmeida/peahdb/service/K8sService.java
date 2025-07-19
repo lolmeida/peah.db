@@ -11,6 +11,7 @@ import com.lolmeida.peahdb.entity.k8s.AppManifest;
 import com.lolmeida.peahdb.repository.K8sRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.core.Response;
 
 import java.util.List;
 
@@ -23,12 +24,18 @@ public class K8sService {
     @Inject
     K8sRepository repository;
 
-    public JsonNode generateStackValues(Long envId, String stackName) {
+    public Response generateStackValues(Long envId, String stackName) {
+        if (envId == null || stackName == null) {
+            return BaseService.result(Response.Status.BAD_REQUEST, "Environment ID and Stack name cannot be null");
+        }
+
         ObjectNode values = objectMapper.createObjectNode();
 
         // Global configuration
         Environment env = repository.findEnvironmentById(envId).orElse(null);
-        if (env == null) return values;
+        if (env == null) {
+            return BaseService.result(Response.Status.NOT_FOUND, "Environment with id " + envId + " not found");
+        }
         
         ObjectNode global = values.putObject("global");
         global.put("namespace", env.name.equals("prod") ? "lolmeida" : env.name);
@@ -36,7 +43,9 @@ public class K8sService {
 
         // Stack configuration
         Stack stack = repository.findStackByEnvironmentAndName(envId, stackName).orElse(null);
-        if (stack == null) return values;
+        if (stack == null) {
+            return BaseService.result(Response.Status.NOT_FOUND, "Stack '" + stackName + "' not found in environment " + envId);
+        }
 
         // Stack-level flags
         ObjectNode stackConfig = values.putObject(stackName + "Stack");
@@ -83,7 +92,89 @@ public class K8sService {
             }
         }
 
-        return values;
+        return BaseService.result(Response.Status.OK, values);
+    }
+    
+    // ========== ENVIRONMENT OPERATIONS ==========
+    
+    public Response getAllEnvironments() {
+        return BaseService.result(Response.Status.OK, repository.findAllEnvironments());
+    }
+    
+    public Response getEnvironmentById(Long envId) {
+        if (envId == null) {
+            return BaseService.result(Response.Status.BAD_REQUEST, "Environment ID cannot be null");
+        }
+        
+        Environment env = repository.findEnvironmentById(envId).orElse(null);
+        if (env == null) {
+            return BaseService.result(Response.Status.NOT_FOUND, "Environment with id " + envId + " not found");
+        }
+        
+        return BaseService.result(Response.Status.OK, env);
+    }
+    
+    // ========== STACK OPERATIONS ==========
+    
+    public Response getStacksByEnvironmentId(Long envId) {
+        if (envId == null) {
+            return BaseService.result(Response.Status.BAD_REQUEST, "Environment ID cannot be null");
+        }
+        
+        // Verify environment exists
+        Environment env = repository.findEnvironmentById(envId).orElse(null);
+        if (env == null) {
+            return BaseService.result(Response.Status.NOT_FOUND, "Environment with id " + envId + " not found");
+        }
+        
+        return BaseService.result(Response.Status.OK, repository.findStacksByEnvironmentId(envId));
+    }
+    
+    public Response getStackByEnvironmentAndName(Long envId, String stackName) {
+        if (envId == null || stackName == null) {
+            return BaseService.result(Response.Status.BAD_REQUEST, "Environment ID and Stack name cannot be null");
+        }
+        
+        Stack stack = repository.findStackByEnvironmentAndName(envId, stackName).orElse(null);
+        if (stack == null) {
+            return BaseService.result(Response.Status.NOT_FOUND, "Stack '" + stackName + "' not found in environment " + envId);
+        }
+        
+        return BaseService.result(Response.Status.OK, stack);
+    }
+    
+    // ========== APP OPERATIONS ==========
+    
+    public Response getAppsByStackId(Long stackId) {
+        if (stackId == null) {
+            return BaseService.result(Response.Status.BAD_REQUEST, "Stack ID cannot be null");
+        }
+        
+        return BaseService.result(Response.Status.OK, repository.findAppsByStackId(stackId));
+    }
+    
+    public Response getAppsByEnvironmentAndStack(Long envId, Long stackId) {
+        if (envId == null || stackId == null) {
+            return BaseService.result(Response.Status.BAD_REQUEST, "Environment ID and Stack ID cannot be null");
+        }
+        
+        // Verify stack exists in environment
+        Stack stack = repository.findStackByIdAndEnvironment(stackId, envId).orElse(null);
+        if (stack == null) {
+            return BaseService.result(Response.Status.NOT_FOUND, "Stack with id " + stackId + " not found in environment " + envId);
+        }
+        
+        return BaseService.result(Response.Status.OK, repository.findAppsByEnvironmentAndStack(envId, stackId));
+    }
+    
+    // ========== APP MANIFEST OPERATIONS ==========
+    
+    public Response getAppManifestsByAppId(Long appId) {
+        if (appId == null) {
+            return BaseService.result(Response.Status.BAD_REQUEST, "App ID cannot be null");
+        }
+        
+        return BaseService.result(Response.Status.OK, repository.findAppManifestsByAppId(appId));
     }
 
     private void generateAppManifestConfigurations(App app, ObjectNode appConfig) {

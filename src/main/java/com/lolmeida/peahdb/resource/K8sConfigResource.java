@@ -365,7 +365,7 @@ public class K8sConfigResource {
     @GET
     @Path("/environments/{envId}/stacks/{stackName}/values")
     @Produces(MediaType.APPLICATION_JSON)
-    public JsonNode generateValues(@PathParam("envId") Long envId,
+    public Response generateValues(@PathParam("envId") Long envId,
                                    @PathParam("stackName") String stackName) {
         return valuesGenerator.generateStackValues(envId, stackName);
     }
@@ -373,13 +373,23 @@ public class K8sConfigResource {
     @GET
     @Path("/environments/{envId}/stacks/{stackName}/values.yaml")
     @Produces("application/x-yaml")
-    public String generateValuesYaml(@PathParam("envId") Long envId,
-                                     @PathParam("stackName") String stackName) {
-        JsonNode values = valuesGenerator.generateStackValues(envId, stackName);
+    public Response generateValuesYaml(@PathParam("envId") Long envId,
+                                       @PathParam("stackName") String stackName) {
+        Response response = valuesGenerator.generateStackValues(envId, stackName);
+        
+        // If the service returned an error, propagate it
+        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
+            return response;
+        }
+        
+        JsonNode values = (JsonNode) response.getEntity();
         try {
-            return yamlMapper.writeValueAsString(values);
+            String yamlContent = yamlMapper.writeValueAsString(values);
+            return Response.ok(yamlContent).type("application/x-yaml").build();
         } catch (JsonProcessingException e) {
-            throw new WebApplicationException("Failed to generate YAML values", e);
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity("Failed to generate YAML values: " + e.getMessage())
+                    .build();
         }
     }
 }
