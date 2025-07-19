@@ -20,15 +20,15 @@ public class UserService {
     MapperService mapper;
     
     public Response getAllUsers() {
-        return result(Response.Status.OK,userRepository.listAll());
+        return BaseService.result(Response.Status.OK,userRepository.listAll());
     }
     
     public Response getUserById(Long id) {
-        return result(Response.Status.OK,userRepository.findByIdOptional(id));
+        return BaseService.result(Response.Status.OK,userRepository.findByIdOptional(id));
     }
 
     public Response search(String key, String value) {
-            return result(Response.Status.OK,userRepository.search(key, value));
+            return BaseService.result(Response.Status.OK,userRepository.search(key, value));
     }
 
     /**
@@ -50,7 +50,7 @@ public class UserService {
         mapper.toUser(userRequest).setUpdatedAt(now);
         
         userRepository.createOrUpdate(mapper.toUser(userRequest));
-        return result(Response.Status.CREATED, mapper.toUserResponse(mapper.toUser(userRequest)));
+        return BaseService.result(Response.Status.CREATED, mapper.toUserResponse(mapper.toUser(userRequest)));
     }
 
     /**
@@ -81,7 +81,7 @@ public class UserService {
         mapper.toUserWithId(userRequest, id).setCreatedAt(userRepository.findByIdOptional(id).get().getCreatedAt()); // Keep original createdAt
         
         userRepository.createOrUpdate(mapper.toUserWithId(userRequest, id));
-        return result(Response.Status.OK, mapper.toUserResponse(mapper.toUserWithId(userRequest, id)));
+        return BaseService.result(Response.Status.OK, mapper.toUserResponse(mapper.toUserWithId(userRequest, id)));
     }
 
     /**
@@ -117,7 +117,7 @@ public class UserService {
         userRepository.findByIdOptional(id).get().setUpdatedAt(LocalDateTime.now());
         
         userRepository.createOrUpdate(userRepository.findByIdOptional(id).get());
-        return result(Response.Status.OK, mapper.toUserResponse(userRepository.findByIdOptional(id).get()));
+        return BaseService.result(Response.Status.OK, mapper.toUserResponse(userRepository.findByIdOptional(id).get()));
     }
 
     /**
@@ -142,7 +142,7 @@ public class UserService {
             mapper.toUserWithId(userRequest, id).setUpdatedAt(now);
             
             userRepository.createOrUpdate(mapper.toUserWithId(userRequest, id));
-            return result(Response.Status.CREATED, mapper.toUserResponse(mapper.toUserWithId(userRequest, id)));
+            return BaseService.result(Response.Status.CREATED, mapper.toUserResponse(mapper.toUserWithId(userRequest, id)));
         } else {
             if (isUsernameOrEmailTaken(userRequest.getUsername(), userRequest.getEmail(), id)) {
                 return Response.status(Response.Status.CONFLICT)
@@ -154,7 +154,7 @@ public class UserService {
             mapper.toUserWithId(userRequest, id).setCreatedAt(userRepository.findByIdOptional(id).get().getCreatedAt()); // Keep original createdAt
             
             userRepository.createOrUpdate(mapper.toUserWithId(userRequest, id));
-            return result(Response.Status.OK, mapper.toUserResponse(mapper.toUserWithId(userRequest, id)));
+            return BaseService.result(Response.Status.OK, mapper.toUserResponse(mapper.toUserWithId(userRequest, id)));
         }
     }
 
@@ -174,10 +174,4 @@ public class UserService {
         return userRepository.findByEmail(email).isPresent() && !userRepository.findByEmail(email).get().getId().equals(excludeId);
     }
 
-    private Response result (Response.Status status, Object entity) {
-        return Response
-                .status(status)
-                .entity(entity)
-                .build();
-    }
 }

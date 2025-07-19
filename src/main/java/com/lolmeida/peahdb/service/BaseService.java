@@ -3,6 +3,9 @@ package com.lolmeida.peahdb.service;
 import java.util.List;
 import java.util.Optional;
 
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
+
 public interface BaseService<R, E> {
 
     public List<E> getAll();
@@ -14,6 +17,14 @@ public interface BaseService<R, E> {
     public E update(R entity);
     
     public void delete(Long id);
+
+
+    static Response result (Status status, Object entity) {
+        return Response
+                .status(status)
+                .entity(entity)
+                .build();
+    }
 
     
 }

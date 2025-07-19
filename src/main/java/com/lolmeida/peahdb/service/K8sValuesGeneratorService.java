@@ -137,11 +137,11 @@ public class K8sValuesGeneratorService {
                 break;
             case PERSISTENT_VOLUME_CLAIM:
                 config.put("accessMode", "ReadWriteOnce");
-                config.put("size", "5Gi");
+                config.put("size", "2Gi");
                 break;
             case HPA:
                 config.put("minReplicas", 1);
-                config.put("maxReplicas", 5);
+                config.put("maxReplicas", 2);
                 config.put("targetCPUUtilizationPercentage", 70);
                 break;
         }
