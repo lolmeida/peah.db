@@ -18,6 +18,7 @@ import com.lolmeida.peahdb.dto.mapper.MapperService;
 // Service imports
 import com.lolmeida.peahdb.service.K8sService;
 import com.lolmeida.peahdb.service.DeploymentService;
+import com.lolmeida.peahdb.service.K8sManifestDefaultsService;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -36,6 +37,7 @@ import java.util.stream.Collectors;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 @Path("/api/config")
 @ApplicationScoped
