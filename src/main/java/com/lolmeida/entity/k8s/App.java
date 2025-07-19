@@ -1,7 +1,7 @@
 package com.lolmeida.entity.k8s;
 
+import com.lolmeida.entity.BaseEntity;
 import com.lolmeida.entity.core.Stack;
-import io.quarkus.hibernate.orm.panache.PanacheEntity;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -20,7 +20,7 @@ import java.util.ArrayList;
  */
 @Entity
 @Table(name = "config_apps")
-public class App extends PanacheEntity {
+public class App extends BaseEntity {
     
     // Reference to stack
     @ManyToOne
@@ -32,7 +32,7 @@ public class App extends PanacheEntity {
     
     // App identification
     @Column(name = "name", unique = true)
-    public String name; // n8n, postgresql, redis, grafana, prometheus, peah-db
+    public String name; // n8n, postgresql, redis, grafana, prometheus, peah-be
     
     @Column(name = "display_name")
     public String displayName; // "N8N Automation", "PostgreSQL Database"

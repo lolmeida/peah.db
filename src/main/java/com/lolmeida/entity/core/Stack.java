@@ -1,8 +1,8 @@
 package com.lolmeida.entity.core;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.lolmeida.entity.BaseEntity;
 import com.lolmeida.entity.k8s.App;
-import io.quarkus.hibernate.orm.panache.PanacheEntity;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -15,7 +15,7 @@ import java.util.List;
 
 @Entity
 @Table(name = "config_stacks")
-public class Stack extends PanacheEntity {
+public class Stack extends BaseEntity {
     @ManyToOne
     @JoinColumn(name = "environment_id")
     public Environment environment;

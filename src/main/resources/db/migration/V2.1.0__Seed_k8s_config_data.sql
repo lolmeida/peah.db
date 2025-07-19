@@ -59,7 +59,7 @@ INSERT INTO config_apps (stack_id, name, display_name, description, category, en
  '{"http": 5678}',
  '{"limits": {"memory": "512Mi", "cpu": "200m"}, "requests": {"memory": "256Mi", "cpu": "50m"}}'),
  
-(@prod_apps_stack_id, 'peahdb', 'Peah-DB Logistics API', 'Quarkus-based logistics API', 'api', false, 'lolmeida/peah-db', 'latest', 60, '/q/health/live', '/q/health/ready',
+(@prod_apps_stack_id, 'peahdb', 'peah-be Logistics API', 'Quarkus-based logistics API', 'api', false, 'lolmeida/peah-be', 'latest', 60, '/q/health/live', '/q/health/ready',
  '{"profile": "prod", "logging_level": "INFO"}',
  '["postgresql"]',
  '{"http": 8080}',
@@ -111,9 +111,9 @@ INSERT INTO config_app_manifests (app_id, manifest_type, required, creation_prio
 
 -- Insert app manifests for PeahDB
 INSERT INTO config_app_manifests (app_id, manifest_type, required, creation_priority, description) VALUES
-(@peahdb_id, 'DEPLOYMENT', true, 60, 'Peah-DB API deployment'),
-(@peahdb_id, 'SERVICE', true, 61, 'Peah-DB service'),
-(@peahdb_id, 'INGRESS', true, 80, 'Peah-DB external access'),
+(@peahdb_id, 'DEPLOYMENT', true, 60, 'peah-be API deployment'),
+(@peahdb_id, 'SERVICE', true, 61, 'peah-be service'),
+(@peahdb_id, 'INGRESS', true, 80, 'peah-be external access'),
 (@peahdb_id, 'HPA', false, 90, 'Horizontal Pod Autoscaler');
 
 -- Update the HPA manifest with condition

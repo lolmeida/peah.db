@@ -55,12 +55,12 @@ Todas as respostas incluem headers informativos:
 ## 🌐 Aplicação em Produção
 
 ### 📍 URLs de Produção
-- **API Base**: https://peah-db.lolmeida.com
-- **Swagger UI**: https://peah-db.lolmeida.com/api-docs/
-- **Health Check**: https://peah-db.lolmeida.com/q/health
-- **Metrics**: https://peah-db.lolmeida.com/q/metrics
-- **Dashboard**: https://peah-db.lolmeida.com/logs/dashboard
-- **OpenAPI Spec**: https://peah-db.lolmeida.com/q/openapi
+- **API Base**: https://peah-be.lolmeida.com
+- **Swagger UI**: https://peah-be.lolmeida.com/api-docs/
+- **Health Check**: https://peah-be.lolmeida.com/q/health
+- **Metrics**: https://peah-be.lolmeida.com/q/metrics
+- **Dashboard**: https://peah-be.lolmeida.com/logs/dashboard
+- **OpenAPI Spec**: https://peah-be.lolmeida.com/q/openapi
 
 ### 🔧 Configuração de Produção
 - **Database**: PostgreSQL no cluster Kubernetes
@@ -164,7 +164,7 @@ quarkus:
   profile: "prod"
 
 image:
-  repository: "lolmeida/peah-db"
+  repository: "lolmeida/peah-be"
   tag: "latest"
   pullPolicy: "Always"
 ```
@@ -176,7 +176,7 @@ image:
 ./deploy.sh
 
 # Ou deploy manual com Helm
-helm upgrade --install peah-db ./k8s \
+helm upgrade --install peah-be ./k8s \
   --namespace lolmeida \
   --create-namespace \
   --wait --timeout=300s
@@ -209,10 +209,10 @@ kubectl get pods -n lolmeida -l app.kubernetes.io/name=k8s
 kubectl logs -n lolmeida -l app.kubernetes.io/name=k8s
 
 # Testa health check
-curl https://peah-db.lolmeida.com/q/health
+curl https://peah-be.lolmeida.com/q/health
 
 # Acessa Swagger UI
-curl https://peah-db.lolmeida.com/api-docs/
+curl https://peah-be.lolmeida.com/api-docs/
 ```
 
 ## 📡 Endpoints da API
@@ -335,23 +335,23 @@ A aplicação inclui 8 usuários de exemplo:
 #### Pod em CreateContainerConfigError
 ```bash
 # Verifica se o secret existe
-kubectl get secrets -n lolmeida | grep peah-db
+kubectl get secrets -n lolmeida | grep peah-be
 
 # Verifica o deployment
-kubectl describe deployment peah-db-k8s -n lolmeida
+kubectl describe deployment peah-be-k8s -n lolmeida
 ```
 
 #### Conexão com Base de Dados
 ```bash
 # Verifica se o PostgreSQL está acessível
-kubectl exec -n lolmeida deployment/peah-db-k8s -- \
+kubectl exec -n lolmeida deployment/peah-be-k8s -- \
   curl -s http://localhost:8080/q/health
 ```
 
 #### Swagger UI não carrega
 ```bash
 # Verifica se o perfil prod está ativo
-kubectl exec -n lolmeida deployment/peah-db-k8s -- \
+kubectl exec -n lolmeida deployment/peah-be-k8s -- \
   printenv | grep QUARKUS_PROFILE
 ```
 
@@ -362,7 +362,7 @@ kubectl exec -n lolmeida deployment/peah-db-k8s -- \
 kubectl logs -n lolmeida -l app.kubernetes.io/name=k8s -f
 
 # Logs do deployment
-kubectl describe deployment peah-db-k8s -n lolmeida
+kubectl describe deployment peah-be-k8s -n lolmeida
 
 # Eventos do namespace
 kubectl get events -n lolmeida --sort-by='.lastTimestamp'
@@ -425,11 +425,11 @@ Este projeto está sob a licença MIT - veja o arquivo [LICENSE](LICENSE) para d
 ## 🚀 Recursos Adicionais
 
 ### 🌐 Produção
-- **Swagger UI**: https://peah-db.lolmeida.com/api-docs/
-- **Health Check**: https://peah-db.lolmeida.com/q/health
-- **Metrics**: https://peah-db.lolmeida.com/q/metrics
-- **Dashboard**: https://peah-db.lolmeida.com/logs/dashboard
-- **OpenAPI Spec**: https://peah-db.lolmeida.com/q/openapi
+- **Swagger UI**: https://peah-be.lolmeida.com/api-docs/
+- **Health Check**: https://peah-be.lolmeida.com/q/health
+- **Metrics**: https://peah-be.lolmeida.com/q/metrics
+- **Dashboard**: https://peah-be.lolmeida.com/logs/dashboard
+- **OpenAPI Spec**: https://peah-be.lolmeida.com/q/openapi
 
 ### 🖥️ Desenvolvimento Local
 - **Swagger UI**: http://localhost:8080/api-docs/
@@ -443,4 +443,4 @@ Este projeto está sob a licença MIT - veja o arquivo [LICENSE](LICENSE) para d
 
 **Desenvolvido com ❤️ usando Quarkus e Java 21**
 
-*Deploy em produção: https://peah-db.lolmeida.com*
+*Deploy em produção: https://peah-be.lolmeida.com*

@@ -1,6 +1,6 @@
 package com.lolmeida.entity.k8s;
 
-import io.quarkus.hibernate.orm.panache.PanacheEntity;
+import com.lolmeida.entity.BaseEntity;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "config_app_manifests",
        uniqueConstraints = @UniqueConstraint(columnNames = {"app_id", "manifest_type"}))
-public class AppManifest extends PanacheEntity {
+public class AppManifest extends BaseEntity {
 
     // Reference to app
     @ManyToOne

@@ -70,7 +70,7 @@ The application comes pre-populated with realistic data:
 ### Stacks (in prod environment)
 1. **database** - PostgreSQL, Redis
 2. **monitoring** - Prometheus, Grafana
-3. **apps** - N8N, Peah-DB
+3. **apps** - N8N, peah-be
 
 ### Sample Apps
 - **postgresql** - Database with deployment, service, PVC, secret manifests
@@ -152,9 +152,9 @@ Database migrations run automatically in dev mode, ensuring the schema is always
 ## 🌐 Production URLs
 
 When deployed to production:
-- **API**: https://peah-db.lolmeida.com/api/config
-- **Swagger UI**: https://peah-db.lolmeida.com/q/swagger-ui
-- **Health Check**: https://peah-db.lolmeida.com/q/health
+- **API**: https://peah-be.lolmeida.com/api/config
+- **Swagger UI**: https://peah-be.lolmeida.com/q/swagger-ui
+- **Health Check**: https://peah-be.lolmeida.com/q/health
 
 ---
 

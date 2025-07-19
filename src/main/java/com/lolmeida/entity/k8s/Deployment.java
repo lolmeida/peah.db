@@ -1,6 +1,6 @@
 package com.lolmeida.entity.k8s;
 
-import io.quarkus.hibernate.orm.panache.PanacheEntity;
+import com.lolmeida.entity.BaseEntity;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "config_deployments")
-public class Deployment extends PanacheEntity {
+public class Deployment extends BaseEntity {
     
     // Reference to service
     @ManyToOne

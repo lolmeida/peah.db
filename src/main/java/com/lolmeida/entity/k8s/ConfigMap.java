@@ -1,6 +1,6 @@
 package com.lolmeida.entity.k8s;
 
-import io.quarkus.hibernate.orm.panache.PanacheEntity;
+import com.lolmeida.entity.BaseEntity;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "config_configmaps")
-public class ConfigMap extends PanacheEntity {
+public class ConfigMap extends BaseEntity {
     
     // Reference to service
     @ManyToOne

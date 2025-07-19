@@ -1,7 +1,7 @@
 package com.lolmeida.entity.k8s;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import io.quarkus.hibernate.orm.panache.PanacheEntity;
+import com.lolmeida.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -20,7 +20,7 @@ import java.time.LocalDateTime;
 @Data
 @EqualsAndHashCode(callSuper = false, exclude = {"category"})
 @ToString(exclude = {"category"})
-public class AuthDefault extends PanacheEntity {
+public class AuthDefault extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)

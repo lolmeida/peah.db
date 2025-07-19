@@ -9,7 +9,7 @@ on:
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: lolmeida/peah-db
+  IMAGE_NAME: lolmeida/peah-be
 
 jobs:
   build-test-and-push:

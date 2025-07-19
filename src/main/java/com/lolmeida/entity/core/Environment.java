@@ -1,6 +1,6 @@
 package com.lolmeida.entity.core;
 
-import io.quarkus.hibernate.orm.panache.PanacheEntity;
+import com.lolmeida.entity.BaseEntity;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "config_environments")
-public class Environment extends PanacheEntity {
+public class Environment extends BaseEntity {
     public String name;
     public String description;
     @Column(name = "is_active")

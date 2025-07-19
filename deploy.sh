@@ -42,9 +42,9 @@ IMAGE_TAG=${1:-latest}
 NAMESPACE="lolmeida"
 VPS_HOST="n8n"
 REPO_URL="https://github.com/lolmeida/peah.db.git"
-TEMP_DIR="/tmp/peah-db-helm"
-DEPLOYMENT_NAME="peah-db-k8s"
-APP_URL="https://peah-db.lolmeida.com"
+TEMP_DIR="/tmp/peah-be-helm"
+DEPLOYMENT_NAME="peah-be-k8s"
+APP_URL="https://peah-be.lolmeida.com"
 
 log "🚀 Starting deployment process for peah.db"
 log "📋 Deployment parameters:"
@@ -180,7 +180,7 @@ ssh $VPS_HOST << EOF
     # Dry run to preview changes
     log "🔍 Running Helm dry-run to preview changes..."
     echo "----------------------------------------"
-    microk8s helm3 upgrade --install peah-db . \
+    microk8s helm3 upgrade --install peah-be . \
         --namespace "$NAMESPACE" \
         --create-namespace \
         --set image.tag="$IMAGE_TAG" \
@@ -189,12 +189,12 @@ ssh $VPS_HOST << EOF
     
     # Execute Helm upgrade
     log "🔧 Running Helm upgrade..."
-    log "   - Release name: peah-db"
+    log "   - Release name: peah-be"
     log "   - Namespace: $NAMESPACE"
     log "   - Image tag: $IMAGE_TAG"
     log "   - Timeout: 300s"
     
-    if microk8s helm3 upgrade --install peah-db . \
+    if microk8s helm3 upgrade --install peah-be . \
         --namespace "$NAMESPACE" \
         --create-namespace \
         --set image.tag="$IMAGE_TAG" \
@@ -207,7 +207,7 @@ ssh $VPS_HOST << EOF
     
     # Check Helm release status
     log "📋 Checking Helm release status..."
-    microk8s helm3 status peah-db -n "$NAMESPACE" | grep -E "(STATUS|REVISION|DEPLOYED)"
+    microk8s helm3 status peah-be -n "$NAMESPACE" | grep -E "(STATUS|REVISION|DEPLOYED)"
     
     # Check deployment rollout status
     log "⏳ Waiting for deployment rollout..."
@@ -250,9 +250,9 @@ ssh $VPS_HOST << EOF
     
     # Check service status
     log "🌐 Checking service status..."
-    if microk8s kubectl get service peah-db-k8s -n "$NAMESPACE" > /dev/null 2>&1; then
+    if microk8s kubectl get service peah-be-k8s -n "$NAMESPACE" > /dev/null 2>&1; then
         success "Service is configured"
-        SERVICE_INFO=$(microk8s kubectl get service peah-db-k8s -n "$NAMESPACE" -o wide)
+        SERVICE_INFO=$(microk8s kubectl get service peah-be-k8s -n "$NAMESPACE" -o wide)
         echo "$SERVICE_INFO"
     else
         warn "Service not found"
@@ -288,7 +288,7 @@ ssh $VPS_HOST << EOF
         # Additional diagnostics
         log "🔍 Running additional diagnostics..."
         log "   - Testing pod-to-pod connectivity..."
-        microk8s kubectl run curl-test --rm -i --restart=Never --image=curlimages/curl -- curl -s http://peah-db-k8s."$NAMESPACE".svc.cluster.local:8080/q/health || warn "Pod-to-pod test failed"
+        microk8s kubectl run curl-test --rm -i --restart=Never --image=curlimages/curl -- curl -s http://peah-be-k8s."$NAMESPACE".svc.cluster.local:8080/q/health || warn "Pod-to-pod test failed"
         
         exit 1
     fi
@@ -297,7 +297,7 @@ ssh $VPS_HOST << EOF
     echo "----------------------------------------"
     success "✨ Deployment completed successfully!"
     log "📊 Deployment summary:"
-    log "   - Release: peah-db"
+    log "   - Release: peah-be"
     log "   - Namespace: $NAMESPACE"
     log "   - Image tag: $IMAGE_TAG"
     log "   - Application URL: $APP_URL"
