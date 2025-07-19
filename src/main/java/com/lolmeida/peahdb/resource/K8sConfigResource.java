@@ -1,16 +1,22 @@
 package com.lolmeida.peahdb.resource;
 
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.lolmeida.peahdb.entity.core.Environment;
 import com.lolmeida.peahdb.entity.core.Stack;
 import com.lolmeida.peahdb.entity.k8s.App;
 import com.lolmeida.peahdb.entity.k8s.AppManifest;
 import com.lolmeida.peahdb.entity.k8s.Deployment;
+import com.lolmeida.peahdb.service.K8sValuesGeneratorService;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.WebApplicationException;
 
 import java.util.List;
 
@@ -19,6 +25,19 @@ import java.util.List;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class K8sConfigResource {
+
+    @Inject
+    K8sValuesGeneratorService valuesGenerator;
+
+    @Inject
+    ObjectMapper objectMapper;
+
+    private ObjectMapper yamlMapper;
+
+    @jakarta.annotation.PostConstruct
+    void init() {
+        yamlMapper = new ObjectMapper(new YAMLFactory());
+    }
 
     // ENVIRONMENTS
     @GET
@@ -150,6 +169,10 @@ public class K8sConfigResource {
     public String generateValuesYaml(@PathParam("envId") Long envId,
                                      @PathParam("stackName") String stackName) {
         JsonNode values = valuesGenerator.generateStackValues(envId, stackName);
-        return yamlMapper.writeValueAsString(values);
+        try {
+            return yamlMapper.writeValueAsString(values);
+        } catch (JsonProcessingException e) {
+            throw new WebApplicationException("Failed to generate YAML values", e);
+        }
     }
 }
