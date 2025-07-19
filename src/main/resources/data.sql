@@ -142,6 +142,93 @@ INSERT INTO config_app_manifests (app_id, manifest_type, required, creation_prio
 -- Scaling
 ((SELECT id FROM config_apps WHERE name = 'peahdb'), 'HPA', true, 85, 'Auto-scaling for Peah-DB API', NULL);
 
+
+
+
+-- Criar ambientes
+INSERT INTO config_environments (name, description, id) VALUES
+('prod', 'Production environment',1),
+('staging', 'Staging environment',2),
+('dev', 'Development environment',3);
+('dev', 'Development environment',4);
+
+-- Criar stacks para produção
+INSERT INTO config_stacks (environment_id, name, enabled, description) VALUES 
+(1, 'database', true, 'Database services stack'),
+(1, 'monitoring', true, 'Monitoring and observability stack'),
+(1, 'apps', true, 'Applications stack');
+
+-- ====== APPS AND MANIFESTS CONFIGURATION ======
+
+-- Database Stack Apps (Priority 10)
+INSERT INTO config_apps (stack_id, name, display_name, description, category, default_image_repository, default_image_tag, deployment_priority, enabled, default_ports, default_resources, dependencies) VALUES 
+-- Database stack
+(1, 'postgresql', 'PostgreSQL Database', 'PostgreSQL relational database', 'database', 'postgres', '14', 10, true, 
+ '{"postgres": 5432}',
+ '{"limits": {"memory": "512Mi", "cpu": "200m"}, "requests": {"memory": "256Mi", "cpu": "100m"}}',
+ '[]'),
+(1, 'mysql', 'MySQL Database', 'MySQL relational database', 'database', 'mysql', '8.0', 10, true,
+ '{"mysql": 3306}',
+ '{"limits": {"memory": "512Mi", "cpu": "200m"}, "requests": {"memory": "256Mi", "cpu": "100m"}}',
+ '[]'),
+(1, 'redis', 'Redis Cache', 'Redis in-memory data store', 'database', 'redis', '7-alpine', 10, true,
+ '{"redis": 6379}',
+ '{"limits": {"memory": "256Mi", "cpu": "100m"}, "requests": {"memory": "128Mi", "cpu": "50m"}}',
+ '[]');
+
+-- Monitoring Stack Apps (Priority 20-30)  
+INSERT INTO config_apps (stack_id, name, display_name, description, category, default_image_repository, default_image_tag, deployment_priority, health_check_path, enabled, default_ports, default_resources, dependencies) VALUES
+(2, 'prometheus', 'Prometheus Monitoring', 'Prometheus metrics collection', 'monitoring', 'prom/prometheus', 'v2.45.0', 20, '/healthy', true,
+ '{"http": 9090}',
+ '{"limits": {"memory": "512Mi", "cpu": "200m"}, "requests": {"memory": "256Mi", "cpu": "100m"}}',
+ '[]'),
+(2, 'grafana', 'Grafana Dashboard', 'Grafana visualization dashboards', 'monitoring', 'grafana/grafana', '10.2.0', 30, '/api/health', true,
+ '{"http": 3000}',
+ '{"limits": {"memory": "512Mi", "cpu": "200m"}, "requests": {"memory": "256Mi", "cpu": "100m"}}',
+ '["prometheus"]');
+
+-- Application Stack Apps (Priority 50-60)
+INSERT INTO config_apps (stack_id, name, display_name, description, category, default_image_repository, default_image_tag, deployment_priority, health_check_path, readiness_check_path, enabled, default_ports, default_resources, dependencies) VALUES
+(3, 'n8n', 'N8N Automation', 'N8N workflow automation platform', 'automation', 'n8nio/n8n', 'latest', 50, '/healthz', '/healthz', true,
+ '{"http": 5678}',
+ '{"limits": {"memory": "512Mi", "cpu": "200m"}, "requests": {"memory": "256Mi", "cpu": "50m"}}',
+ '["postgresql", "redis"]'),
+(3, 'peahdb', 'Peah-DB Logistics API', 'Quarkus-based logistics API', 'api', 'lolmeida/peah-db', 'latest', 60, '/q/health/live', '/q/health/ready', true,
+ '{"http": 8080}',
+ '{"limits": {"memory": "512Mi", "cpu": "500m"}, "requests": {"memory": "256Mi", "cpu": "250m"}}',
+ '["postgresql"]');
+
+-- ====== APP MANIFEST DEFINITIONS ======
+
+-- PostgreSQL Manifests (Database priority)
+INSERT INTO config_app_manifests (app_id, manifest_type, required, creation_priority, description) VALUES
+((SELECT id FROM config_apps WHERE name = 'postgresql'), 'DEPLOYMENT', true, 1, 'PostgreSQL deployment with persistent storage'),
+((SELECT id FROM config_apps WHERE name = 'postgresql'), 'SERVICE', true, 2, 'PostgreSQL service for internal access'),
+((SELECT id FROM config_apps WHERE name = 'postgresql'), 'PERSISTENT_VOLUME_CLAIM', true, 3, 'Persistent storage for PostgreSQL data'),
+((SELECT id FROM config_apps WHERE name = 'postgresql'), 'SECRET', true, 4, 'PostgreSQL passwords and credentials');
+
+-- Redis Manifests  
+INSERT INTO config_app_manifests (app_id, manifest_type, required, creation_priority, description) VALUES
+((SELECT id FROM config_apps WHERE name = 'redis'), 'DEPLOYMENT', true, 1, 'Redis deployment'),
+((SELECT id FROM config_apps WHERE name = 'redis'), 'SERVICE', true, 2, 'Redis service for internal access'), 
+((SELECT id FROM config_apps WHERE name = 'redis'), 'SECRET', true, 3, 'Redis authentication password');
+
+-- Prometheus Manifests (Complex - needs RBAC)
+INSERT INTO config_app_manifests (app_id, manifest_type, required, creation_priority, description) VALUES
+((SELECT id FROM config_apps WHERE name = 'prometheus'), 'SERVICE_ACCOUNT', true, 1, 'Service account for Prometheus'),
+((SELECT id FROM config_apps WHERE name = 'prometheus'), 'CLUSTER_ROLE', true, 2, 'Cluster role for metrics scraping'),
+((SELECT id FROM config_apps WHERE name = 'prometheus'), 'CONFIG_MAP', true, 5, 'Prometheus configuration'),
+((SELECT id FROM config_apps WHERE name = 'prometheus'), 'DEPLOYMENT', true, 10, 'Prometheus deployment'),
+((SELECT id FROM config_apps WHERE name = 'prometheus'), 'SERVICE', true, 11, 'Prometheus service');
+
+-- N8N Manifests (Complex - depends on database)
+INSERT INTO config_app_manifests (app_id, manifest_type, required, creation_priority, description) VALUES
+((SELECT id FROM config_apps WHERE name = 'n8n'), 'DEPLOYMENT', true, 50, 'N8N automation platform'),
+((SELECT id FROM config_apps WHERE name = 'n8n'), 'SERVICE', true, 51, 'N8N service'),
+((SELECT id FROM config_apps WHERE name = 'n8n'), 'SECRET', true, 52, 'N8N authentication credentials'),
+((SELECT id FROM config_apps WHERE name = 'n8n'), 'PERSISTENT_VOLUME_CLAIM', true, 53, 'N8N workflow storage'),
+((SELECT id FROM config_apps WHERE name = 'n8n'), 'INGRESS', true, 80, 'N8N external access');
+
 -- ============================================================================
 -- 3. VERIFICATION QUERIES
 -- ============================================================================

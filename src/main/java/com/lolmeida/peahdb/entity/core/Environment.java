@@ -1,9 +1,7 @@
 package com.lolmeida.peahdb.entity.core;
 
 import io.quarkus.hibernate.orm.panache.PanacheEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -24,4 +22,5 @@ public class Environment extends PanacheEntity {
     @UpdateTimestamp
     @Column(name = "updated_at")
     public LocalDateTime updatedAt;
+
 }
