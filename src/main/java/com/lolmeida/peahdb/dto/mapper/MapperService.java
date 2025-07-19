@@ -112,6 +112,7 @@ public interface MapperService {
     
     // App response mappers
     @Mapping(source = "stack.id", target = "stackId")
+    @Mapping(source = "requiredManifests", target = "requiredManifests")
     AppResponse toAppResponse(App app);
     
     // AppManifest mappers

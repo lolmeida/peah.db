@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -139,6 +140,9 @@ public class AppResponse {
         example = "50"
     )
     private Integer deploymentPriority;
+    
+    @Schema(description = "List of required manifests for this app")
+    private List<AppManifestResponse> requiredManifests;
     
     @Schema(
         description = "Timestamp when the app was created",

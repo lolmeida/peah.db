@@ -27,8 +27,11 @@ CREATE TABLE IF NOT EXISTS app_config (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
--- Insert or update default configuration values using MERGE for compatibility
-MERGE INTO app_config (config_key, config_value, description) KEY(config_key) VALUES
+-- Insert default configuration values for MySQL compatibility
+INSERT INTO app_config (config_key, config_value, description) VALUES
     ('app.name', 'PeahDB', 'Application name'),
     ('app.version', '1.0.0', 'Application version'),
-    ('app.environment', 'development', 'Current environment'); 
+    ('app.environment', 'development', 'Current environment')
+ON DUPLICATE KEY UPDATE 
+    config_value = VALUES(config_value),
+    description = VALUES(description); 

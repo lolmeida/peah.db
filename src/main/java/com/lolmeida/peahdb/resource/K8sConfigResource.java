@@ -171,6 +171,30 @@ public class K8sConfigResource {
         return Response.ok(mapperService.toStackResponse(existingStack)).build();
     }
 
+    // UPDATE STACK by name (frontend compatibility)
+    @PUT
+    @Path("/environments/{envId}/stacks/{stackName}")
+    @Transactional
+    public Response updateStackByName(@PathParam("envId") Long envId,
+                                     @PathParam("stackName") String stackName,
+                                     StackRequest stackRequest) {
+        Stack existingStack = Stack.find("environment.id = ?1 and name = ?2", envId, stackName).firstResult();
+        if (existingStack == null) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+
+        // Ensure the stackRequest has the correct environmentId
+        stackRequest.setEnvironmentId(envId);
+        Stack updatedStack = mapperService.toStackWithId(stackRequest, existingStack.id);
+        
+        existingStack.name = updatedStack.name;
+        existingStack.enabled = updatedStack.enabled;
+        existingStack.description = updatedStack.description;
+        existingStack.config = updatedStack.config;
+        
+        return Response.ok(mapperService.toStackResponse(existingStack)).build();
+    }
+
     // APPS
     @GET
     @Path("/environments/{envId}/stacks/{stackId}/apps")
@@ -179,6 +203,20 @@ public class K8sConfigResource {
         List<App> apps = App.find(
                 "stack.environment.id = ?1 and stack.id = ?2 ORDER BY deploymentPriority, name",
                 envId, stackId
+        ).list();
+        return apps.stream()
+                .map(mapperService::toAppResponse)
+                .collect(Collectors.toList());
+    }
+
+    // APPS by stack name (frontend compatibility)
+    @GET
+    @Path("/environments/{envId}/stacks/{stackName}/apps")
+    public List<AppResponse> getAppsByStackName(@PathParam("envId") Long envId,
+                                               @PathParam("stackName") String stackName) {
+        List<App> apps = App.find(
+                "stack.environment.id = ?1 and stack.name = ?2 ORDER BY deploymentPriority, name",
+                envId, stackName
         ).list();
         return apps.stream()
                 .map(mapperService::toAppResponse)
@@ -258,6 +296,41 @@ public class K8sConfigResource {
         return Response.ok(mapperService.toAppResponse(existingApp)).build();
     }
 
+    // UPDATE APP by stack name and app name (frontend compatibility)
+    @PUT
+    @Path("/environments/{envId}/stacks/{stackName}/apps/{appName}")
+    @Transactional
+    public Response updateAppByName(@PathParam("envId") Long envId,
+                                   @PathParam("stackName") String stackName,
+                                   @PathParam("appName") String appName,
+                                   AppRequest appRequest) {
+        App existingApp = App.find(
+                "stack.environment.id = ?1 and stack.name = ?2 and name = ?3",
+                envId, stackName, appName
+        ).firstResult();
+
+        if (existingApp == null) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+
+        // Ensure the appRequest has the correct stackId
+        appRequest.setStackId(existingApp.stack.id);
+        App updatedApp = mapperService.toAppWithId(appRequest, existingApp.id);
+        
+        existingApp.name = updatedApp.name;
+        existingApp.enabled = updatedApp.enabled;
+        existingApp.defaultConfig = updatedApp.defaultConfig;
+        existingApp.deploymentPriority = updatedApp.deploymentPriority;
+        existingApp.displayName = updatedApp.displayName;
+        existingApp.description = updatedApp.description;
+        existingApp.category = updatedApp.category;
+        existingApp.version = updatedApp.version;
+        existingApp.defaultImageRepository = updatedApp.defaultImageRepository;
+        existingApp.defaultImageTag = updatedApp.defaultImageTag;
+        
+        return Response.ok(mapperService.toAppResponse(existingApp)).build();
+    }
+
     // APP MANIFESTS
     @GET
     @Path("/environments/{envId}/stacks/{stackId}/apps/{appId}/manifests")
@@ -267,6 +340,21 @@ public class K8sConfigResource {
         List<AppManifest> manifests = AppManifest.find(
                 "app.id = ?1 and app.stack.environment.id = ?2 and app.stack.id = ?3 ORDER BY creationPriority",
                 appId, envId, stackId
+        ).list();
+        return manifests.stream()
+                .map(mapperService::toAppManifestResponse)
+                .collect(Collectors.toList());
+    }
+
+    // APP MANIFESTS by stack name and app name (frontend compatibility)
+    @GET
+    @Path("/environments/{envId}/stacks/{stackName}/apps/{appName}/manifests")
+    public List<AppManifestResponse> getAppManifestsByName(@PathParam("envId") Long envId,
+                                                          @PathParam("stackName") String stackName,
+                                                          @PathParam("appName") String appName) {
+        List<AppManifest> manifests = AppManifest.find(
+                "app.stack.environment.id = ?1 and app.stack.name = ?2 and app.name = ?3 ORDER BY creationPriority",
+                envId, stackName, appName
         ).list();
         return manifests.stream()
                 .map(mapperService::toAppManifestResponse)
@@ -391,5 +479,42 @@ public class K8sConfigResource {
                     .entity("Failed to generate YAML values: " + e.getMessage())
                     .build();
         }
+    }
+
+    // DEPLOY STACK
+    @POST
+    @Path("/environments/{envId}/stacks/{stackName}/deploy")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response deployStack(@PathParam("envId") Long envId,
+                               @PathParam("stackName") String stackName) {
+        // For now, return a mock successful deployment response
+        // In the future, this would trigger actual Helm deployment
+        Environment env = Environment.findById(envId);
+        if (env == null) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity("{\"error\": \"Environment not found\"}")
+                    .build();
+        }
+
+        Stack stack = Stack.find("environment.id = ?1 and name = ?2", envId, stackName).firstResult();
+        if (stack == null) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity("{\"error\": \"Stack not found\"}")
+                    .build();
+        }
+
+        if (!stack.enabled) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("{\"error\": \"Stack is not enabled\"}")
+                    .build();
+        }
+
+        // Mock deployment response
+        String response = String.format(
+            "{\"status\": \"SUCCESS\", \"message\": \"Stack %s deployed successfully to %s\", \"deployedAt\": \"%s\"}",
+            stackName, env.name, java.time.Instant.now().toString()
+        );
+
+        return Response.ok(response).build();
     }
 }
