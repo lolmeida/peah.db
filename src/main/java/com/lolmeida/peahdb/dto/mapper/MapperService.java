@@ -5,10 +5,13 @@ import com.lolmeida.peahdb.dto.request.UserPatchRequest;
 import com.lolmeida.peahdb.dto.response.UserResponse;
 import com.lolmeida.peahdb.entity.User;
 
-// Core entities imports
+// Core entities imports  
 import com.lolmeida.peahdb.dto.request.*;
 import com.lolmeida.peahdb.dto.response.*;
 import com.lolmeida.peahdb.entity.core.*;
+
+// K8s entities imports
+import com.lolmeida.peahdb.entity.k8s.*;
 
 import org.mapstruct.*;
 
@@ -89,4 +92,46 @@ public interface MapperService {
     // Stack response mappers
     @Mapping(source = "environment.id", target = "environmentId")
     StackResponse toStackResponse(Stack stack);
+    
+    // ========== K8S ENTITY MAPPERS ==========
+    
+    // App mappers
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "requiredManifests", ignore = true)
+    @Mapping(source = "stackId", target = "stack.id")
+    App toApp(AppRequest appRequest);
+    
+    @Mapping(source = "appRequest.stackId", target = "stack.id")
+    @Mapping(source = "id", target = "id")
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "requiredManifests", ignore = true)
+    App toAppWithId(AppRequest appRequest, Long id);
+    
+    // App response mappers
+    @Mapping(source = "stack.id", target = "stackId")
+    AppResponse toAppResponse(App app);
+    
+    // AppManifest mappers
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(source = "appId", target = "app.id")
+    AppManifest toAppManifest(AppManifestRequest appManifestRequest);
+    
+    @Mapping(source = "appManifestRequest.appId", target = "app.id")
+    @Mapping(source = "id", target = "id")
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    AppManifest toAppManifestWithId(AppManifestRequest appManifestRequest, Long id);
+    
+    // AppManifest response mappers
+    @Mapping(source = "app.id", target = "appId")
+    AppManifestResponse toAppManifestResponse(AppManifest appManifest);
+    
+    // Deployment response mappers (basic example - add more K8s entities as needed)
+    @Mapping(source = "service.id", target = "serviceId")
+    DeploymentResponse toDeploymentResponse(Deployment deployment);
 }

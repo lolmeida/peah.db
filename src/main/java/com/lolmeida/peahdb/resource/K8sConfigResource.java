@@ -1,33 +1,50 @@
 package com.lolmeida.peahdb.resource;
 
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+
+// Entity imports
 import com.lolmeida.peahdb.entity.core.Environment;
 import com.lolmeida.peahdb.entity.core.Stack;
-import com.lolmeida.peahdb.entity.k8s.App;
-import com.lolmeida.peahdb.entity.k8s.AppManifest;
-import com.lolmeida.peahdb.entity.k8s.Deployment;
+import com.lolmeida.peahdb.entity.k8s.*;
+
+// DTO imports
+import com.lolmeida.peahdb.dto.request.*;
+import com.lolmeida.peahdb.dto.response.*;
+import com.lolmeida.peahdb.dto.mapper.MapperService;
+
+// Service imports
 import com.lolmeida.peahdb.service.K8sValuesGeneratorService;
+
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.WebApplicationException;
 
+import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
+import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Path("/api/config")
 @ApplicationScoped
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
+@Tag(name = "Configuration", description = "Kubernetes configuration management API")
 public class K8sConfigResource {
 
     @Inject
     K8sValuesGeneratorService valuesGenerator;
+
+    @Inject
+    MapperService mapperService;
 
     @Inject
     ObjectMapper objectMapper;
@@ -42,117 +59,307 @@ public class K8sConfigResource {
     // ENVIRONMENTS
     @GET
     @Path("/environments")
-    public List<Environment> getEnvironments() {
-        return Environment.listAll();
+    @Operation(summary = "Get all environments", description = "Retrieve all available environments")
+    @APIResponse(responseCode = "200", description = "List of environments")
+    public List<EnvironmentResponse> getEnvironments() {
+        List<Environment> environments = Environment.listAll();
+        return environments.stream()
+                .map(mapperService::toEnvironmentResponse)
+                .collect(Collectors.toList());
+    }
+
+    @GET
+    @Path("/environments/{envId}")
+    public Response getEnvironment(@PathParam("envId") Long envId) {
+        Environment environment = Environment.findById(envId);
+        if (environment == null) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+        return Response.ok(mapperService.toEnvironmentResponse(environment)).build();
     }
 
     @POST
     @Path("/environments")
     @Transactional
-    public Environment createEnvironment(Environment environment) {
+    public Response createEnvironment(EnvironmentRequest environmentRequest) {
+        Environment environment = mapperService.toEnvironment(environmentRequest);
         environment.persist();
-        return environment;
+        return Response.status(Response.Status.CREATED)
+                .entity(mapperService.toEnvironmentResponse(environment))
+                .build();
+    }
+
+    @PUT
+    @Path("/environments/{envId}")
+    @Transactional
+    public Response updateEnvironment(@PathParam("envId") Long envId, EnvironmentRequest environmentRequest) {
+        Environment existingEnvironment = Environment.findById(envId);
+        if (existingEnvironment == null) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+        
+        Environment updatedEnvironment = mapperService.toEnvironmentWithId(environmentRequest, envId);
+        existingEnvironment.name = updatedEnvironment.name;
+        existingEnvironment.description = updatedEnvironment.description;
+        existingEnvironment.isActive = updatedEnvironment.isActive;
+        
+        return Response.ok(mapperService.toEnvironmentResponse(existingEnvironment)).build();
     }
 
     // STACKS
     @GET
     @Path("/environments/{envId}/stacks")
-    public List<Stack> getStacks(@PathParam("envId") Long envId) {
-        return Stack.find("environment.id", envId).list();
+    public List<StackResponse> getStacks(@PathParam("envId") Long envId) {
+        List<Stack> stacks = Stack.find("environment.id", envId).list();
+        return stacks.stream()
+                .map(mapperService::toStackResponse)
+                .collect(Collectors.toList());
+    }
+
+    @GET
+    @Path("/environments/{envId}/stacks/{stackId}")
+    public Response getStack(@PathParam("envId") Long envId, @PathParam("stackId") Long stackId) {
+        Stack stack = Stack.find("id = ?1 and environment.id = ?2", stackId, envId).firstResult();
+        if (stack == null) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+        return Response.ok(mapperService.toStackResponse(stack)).build();
+    }
+
+    @POST
+    @Path("/environments/{envId}/stacks")
+    @Transactional
+    public Response createStack(@PathParam("envId") Long envId, StackRequest stackRequest) {
+        // Verify environment exists
+        Environment environment = Environment.findById(envId);
+        if (environment == null) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity("Environment not found")
+                    .build();
+        }
+        
+        // Ensure the stackRequest has the correct environmentId
+        stackRequest.setEnvironmentId(envId);
+        Stack stack = mapperService.toStack(stackRequest);
+        stack.persist();
+        
+        return Response.status(Response.Status.CREATED)
+                .entity(mapperService.toStackResponse(stack))
+                .build();
     }
 
     @PUT
-    @Path("/environments/{envId}/stacks/{stackName}")
+    @Path("/environments/{envId}/stacks/{stackId}")
     @Transactional
-    public Stack updateStack(@PathParam("envId") Long envId,
-                             @PathParam("stackName") String stackName,
-                             Stack updatedStack) {
-        Stack stack = Stack.find("environment.id = ?1 and name = ?2", envId, stackName).firstResult();
-        if (stack != null) {
-            stack.enabled = updatedStack.enabled;
-            stack.config = updatedStack.config;
+    public Response updateStack(@PathParam("envId") Long envId,
+                                @PathParam("stackId") Long stackId,
+                                StackRequest stackRequest) {
+        Stack existingStack = Stack.find("id = ?1 and environment.id = ?2", stackId, envId).firstResult();
+        if (existingStack == null) {
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
-        return stack;
+
+        // Ensure the stackRequest has the correct environmentId
+        stackRequest.setEnvironmentId(envId);
+        Stack updatedStack = mapperService.toStackWithId(stackRequest, stackId);
+        
+        existingStack.name = updatedStack.name;
+        existingStack.enabled = updatedStack.enabled;
+        existingStack.description = updatedStack.description;
+        existingStack.config = updatedStack.config;
+        
+        return Response.ok(mapperService.toStackResponse(existingStack)).build();
     }
 
     // APPS
     @GET
-    @Path("/environments/{envId}/stacks/{stackName}/apps")
-    public List<App> getApps(@PathParam("envId") Long envId,
-                             @PathParam("stackName") String stackName) {
-        return App.find(
-                "stack.environment.id = ?1 and stack.name = ?2 ORDER BY deploymentPriority, name",
-                envId, stackName
+    @Path("/environments/{envId}/stacks/{stackId}/apps")
+    public List<AppResponse> getApps(@PathParam("envId") Long envId,
+                                     @PathParam("stackId") Long stackId) {
+        List<App> apps = App.find(
+                "stack.environment.id = ?1 and stack.id = ?2 ORDER BY deploymentPriority, name",
+                envId, stackId
         ).list();
+        return apps.stream()
+                .map(mapperService::toAppResponse)
+                .collect(Collectors.toList());
+    }
+
+    @GET
+    @Path("/environments/{envId}/stacks/{stackId}/apps/{appId}")
+    public Response getApp(@PathParam("envId") Long envId,
+                           @PathParam("stackId") Long stackId,
+                           @PathParam("appId") Long appId) {
+        App app = App.find(
+                "id = ?1 and stack.environment.id = ?2 and stack.id = ?3",
+                appId, envId, stackId
+        ).firstResult();
+        if (app == null) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+        return Response.ok(mapperService.toAppResponse(app)).build();
+    }
+
+    @POST
+    @Path("/environments/{envId}/stacks/{stackId}/apps")
+    @Transactional
+    public Response createApp(@PathParam("envId") Long envId,
+                              @PathParam("stackId") Long stackId,
+                              AppRequest appRequest) {
+        // Verify stack exists
+        Stack stack = Stack.find("id = ?1 and environment.id = ?2", stackId, envId).firstResult();
+        if (stack == null) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity("Stack not found")
+                    .build();
+        }
+        
+        // Ensure the appRequest has the correct stackId
+        appRequest.setStackId(stackId);
+        App app = mapperService.toApp(appRequest);
+        app.persist();
+        
+        return Response.status(Response.Status.CREATED)
+                .entity(mapperService.toAppResponse(app))
+                .build();
     }
 
     @PUT
-    @Path("/environments/{envId}/stacks/{stackName}/apps/{appName}")
+    @Path("/environments/{envId}/stacks/{stackId}/apps/{appId}")
     @Transactional
-    public App updateApp(@PathParam("envId") Long envId,
-                         @PathParam("stackName") String stackName,
-                         @PathParam("appName") String appName,
-                         App updatedApp) {
-        App app = App.find(
-                "stack.environment.id = ?1 and stack.name = ?2 and name = ?3",
-                envId, stackName, appName
+    public Response updateApp(@PathParam("envId") Long envId,
+                              @PathParam("stackId") Long stackId,
+                              @PathParam("appId") Long appId,
+                              AppRequest appRequest) {
+        App existingApp = App.find(
+                "id = ?1 and stack.environment.id = ?2 and stack.id = ?3",
+                appId, envId, stackId
         ).firstResult();
 
-        if (app != null) {
-            app.enabled = updatedApp.enabled;
-            app.defaultConfig = updatedApp.defaultConfig;
-            app.deploymentPriority = updatedApp.deploymentPriority;
-            // Update other fields as needed
+        if (existingApp == null) {
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
-        return app;
+
+        // Ensure the appRequest has the correct stackId
+        appRequest.setStackId(stackId);
+        App updatedApp = mapperService.toAppWithId(appRequest, appId);
+        
+        existingApp.name = updatedApp.name;
+        existingApp.enabled = updatedApp.enabled;
+        existingApp.defaultConfig = updatedApp.defaultConfig;
+        existingApp.deploymentPriority = updatedApp.deploymentPriority;
+        existingApp.displayName = updatedApp.displayName;
+        existingApp.description = updatedApp.description;
+        existingApp.category = updatedApp.category;
+        existingApp.version = updatedApp.version;
+        existingApp.defaultImageRepository = updatedApp.defaultImageRepository;
+        existingApp.defaultImageTag = updatedApp.defaultImageTag;
+        
+        return Response.ok(mapperService.toAppResponse(existingApp)).build();
     }
 
     // APP MANIFESTS
     @GET
-    @Path("/environments/{envId}/stacks/{stackName}/apps/{appName}/manifests")
-    public List<AppManifest> getAppManifests(@PathParam("envId") Long envId,
-                                             @PathParam("stackName") String stackName,
-                                             @PathParam("appName") String appName) {
-        return AppManifest.find(
-                "app.stack.environment.id = ?1 and app.stack.name = ?2 and app.name = ?3 ORDER BY creationPriority",
-                envId, stackName, appName
+    @Path("/environments/{envId}/stacks/{stackId}/apps/{appId}/manifests")
+    public List<AppManifestResponse> getAppManifests(@PathParam("envId") Long envId,
+                                                     @PathParam("stackId") Long stackId,
+                                                     @PathParam("appId") Long appId) {
+        List<AppManifest> manifests = AppManifest.find(
+                "app.id = ?1 and app.stack.environment.id = ?2 and app.stack.id = ?3 ORDER BY creationPriority",
+                appId, envId, stackId
         ).list();
+        return manifests.stream()
+                .map(mapperService::toAppManifestResponse)
+                .collect(Collectors.toList());
+    }
+
+    @GET
+    @Path("/environments/{envId}/stacks/{stackId}/apps/{appId}/manifests/{manifestId}")
+    public Response getAppManifest(@PathParam("envId") Long envId,
+                                   @PathParam("stackId") Long stackId,
+                                   @PathParam("appId") Long appId,
+                                   @PathParam("manifestId") Long manifestId) {
+        AppManifest manifest = AppManifest.find(
+                "id = ?1 and app.id = ?2 and app.stack.environment.id = ?3 and app.stack.id = ?4",
+                manifestId, appId, envId, stackId
+        ).firstResult();
+        if (manifest == null) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+        return Response.ok(mapperService.toAppManifestResponse(manifest)).build();
+    }
+
+    @POST
+    @Path("/environments/{envId}/stacks/{stackId}/apps/{appId}/manifests")
+    @Transactional
+    public Response createAppManifest(@PathParam("envId") Long envId,
+                                      @PathParam("stackId") Long stackId,
+                                      @PathParam("appId") Long appId,
+                                      AppManifestRequest appManifestRequest) {
+        // Verify app exists
+        App app = App.find("id = ?1 and stack.environment.id = ?2 and stack.id = ?3", appId, envId, stackId).firstResult();
+        if (app == null) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity("App not found")
+                    .build();
+        }
+        
+        // Ensure the request has the correct appId
+        appManifestRequest.setAppId(appId);
+        AppManifest manifest = mapperService.toAppManifest(appManifestRequest);
+        manifest.persist();
+        
+        return Response.status(Response.Status.CREATED)
+                .entity(mapperService.toAppManifestResponse(manifest))
+                .build();
     }
 
     @PUT
-    @Path("/environments/{envId}/stacks/{stackName}/apps/{appName}/manifests/{manifestType}")
+    @Path("/environments/{envId}/stacks/{stackId}/apps/{appId}/manifests/{manifestId}")
     @Transactional
-    public AppManifest updateAppManifest(@PathParam("envId") Long envId,
-                                         @PathParam("stackName") String stackName,
-                                         @PathParam("appName") String appName,
-                                         @PathParam("manifestType") String manifestType,
-                                         AppManifest updatedManifest) {
-        AppManifest manifest = AppManifest.find(
-                "app.stack.environment.id = ?1 and app.stack.name = ?2 and app.name = ?3 and manifestType = ?4",
-                envId, stackName, appName, AppManifest.ManifestType.valueOf(manifestType.toUpperCase())
+    public Response updateAppManifest(@PathParam("envId") Long envId,
+                                      @PathParam("stackId") Long stackId,
+                                      @PathParam("appId") Long appId,
+                                      @PathParam("manifestId") Long manifestId,
+                                      AppManifestRequest appManifestRequest) {
+        AppManifest existingManifest = AppManifest.find(
+                "id = ?1 and app.id = ?2 and app.stack.environment.id = ?3 and app.stack.id = ?4",
+                manifestId, appId, envId, stackId
         ).firstResult();
 
-        if (manifest != null) {
-            manifest.required = updatedManifest.required;
-            manifest.defaultConfig = updatedManifest.defaultConfig;
-            manifest.creationCondition = updatedManifest.creationCondition;
+        if (existingManifest == null) {
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
-        return manifest;
+
+        // Ensure the request has the correct appId
+        appManifestRequest.setAppId(appId);
+        AppManifest updatedManifest = mapperService.toAppManifestWithId(appManifestRequest, manifestId);
+        
+        existingManifest.manifestType = updatedManifest.manifestType;
+        existingManifest.required = updatedManifest.required;
+        existingManifest.defaultConfig = updatedManifest.defaultConfig;
+        existingManifest.creationCondition = updatedManifest.creationCondition;
+        existingManifest.creationPriority = updatedManifest.creationPriority;
+        
+        return Response.ok(mapperService.toAppManifestResponse(existingManifest)).build();
     }
 
     // KUBERNETES RESOURCES (Direct Access)
     @GET
-    @Path("/environments/{envId}/stacks/{stackName}/apps/{appName}/deployments")
-    public List<Deployment> getDeployments(@PathParam("envId") Long envId,
-                                           @PathParam("stackName") String stackName,
-                                           @PathParam("appName") String appName) {
-        return Deployment.find(
-                "app.stack.environment.id = ?1 and app.stack.name = ?2 and app.name = ?3",
-                envId, stackName, appName
+    @Path("/environments/{envId}/stacks/{stackId}/apps/{appId}/deployments")
+    public List<DeploymentResponse> getDeployments(@PathParam("envId") Long envId,
+                                                   @PathParam("stackId") Long stackId,
+                                                   @PathParam("appId") Long appId) {
+        List<Deployment> deployments = Deployment.find(
+                "app.id = ?1 and app.stack.environment.id = ?2 and app.stack.id = ?3",
+                appId, envId, stackId
         ).list();
+        return deployments.stream()
+                .map(mapperService::toDeploymentResponse)
+                .collect(Collectors.toList());
     }
 
-    // Similar endpoints for other K8s resources...
+    // TODO: Add other K8s resources endpoints (Secret, ConfigMap, Service, etc.) as needed
 
     // VALUES GENERATION
     @GET

@@ -3,15 +3,12 @@ package com.lolmeida.peahdb.service;
 import com.lolmeida.peahdb.dto.mapper.MapperService;
 import com.lolmeida.peahdb.dto.request.UserRequest;
 import com.lolmeida.peahdb.dto.request.UserPatchRequest;
-import com.lolmeida.peahdb.entity.User;
 import com.lolmeida.peahdb.repository.UserRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.core.Response;
-
 import java.time.LocalDateTime;
-import java.util.Optional;
 
 @ApplicationScoped
 public class UserService {
@@ -47,14 +44,13 @@ public class UserService {
                     .build();
         }
 
-        User entity = mapper.toUser(userRequest);
         
         LocalDateTime now = LocalDateTime.now();
-        entity.setCreatedAt(now);
-        entity.setUpdatedAt(now);
+        mapper.toUser(userRequest).setCreatedAt(now);
+        mapper.toUser(userRequest).setUpdatedAt(now);
         
-        userRepository.createOrUpdate(entity);
-        return result(Response.Status.CREATED, mapper.toUserResponse(entity));
+        userRepository.createOrUpdate(mapper.toUser(userRequest));
+        return result(Response.Status.CREATED, mapper.toUserResponse(mapper.toUser(userRequest)));
     }
 
     /**
@@ -69,8 +65,7 @@ public class UserService {
                     .build();
         }
 
-        Optional<User> existingUser = userRepository.findByIdOptional(id);
-        if (existingUser.isEmpty()) {
+        if (userRepository.findByIdOptional(id).isEmpty()) {
             return Response.status(Response.Status.NOT_FOUND)
                     .entity("User with id " + id + " not found")
                     .build();
@@ -82,12 +77,11 @@ public class UserService {
                     .build();
         }
 
-        User entity = mapper.toUserWithId(userRequest, id);
-        entity.setUpdatedAt(LocalDateTime.now());
-        entity.setCreatedAt(existingUser.get().getCreatedAt()); // Keep original createdAt
+        mapper.toUserWithId(userRequest, id).setUpdatedAt(LocalDateTime.now());
+        mapper.toUserWithId(userRequest, id).setCreatedAt(userRepository.findByIdOptional(id).get().getCreatedAt()); // Keep original createdAt
         
-        userRepository.createOrUpdate(entity);
-        return result(Response.Status.OK, mapper.toUserResponse(entity));
+        userRepository.createOrUpdate(mapper.toUserWithId(userRequest, id));
+        return result(Response.Status.OK, mapper.toUserResponse(mapper.toUserWithId(userRequest, id)));
     }
 
     /**
@@ -102,17 +96,15 @@ public class UserService {
                     .build();
         }
 
-        Optional<User> existingUserOpt = userRepository.findByIdOptional(id);
-        if (existingUserOpt.isEmpty()) {
+        if (userRepository.findByIdOptional(id).isEmpty()) {
             return Response.status(Response.Status.NOT_FOUND)
                     .entity("User with id " + id + " not found")
                     .build();
         }
 
-        User existingUser = existingUserOpt.get();
 
-        String newUsername = patchRequest.getUsername() != null ? patchRequest.getUsername() : existingUser.getUsername();
-        String newEmail = patchRequest.getEmail() != null ? patchRequest.getEmail() : existingUser.getEmail();
+        String newUsername = patchRequest.getUsername() != null ? patchRequest.getUsername() : userRepository.findByIdOptional(id).get().getUsername();
+        String newEmail = patchRequest.getEmail() != null ? patchRequest.getEmail() : userRepository.findByIdOptional(id).get().getEmail();
         
         if (isUsernameOrEmailTaken(newUsername, newEmail, id)) {
             return Response.status(Response.Status.CONFLICT)
@@ -120,12 +112,12 @@ public class UserService {
                     .build();
         }
 
-        mapper.updateUserFromPatch(patchRequest, existingUser);
+        mapper.updateUserFromPatch(patchRequest, userRepository.findByIdOptional(id).get());
         
-        existingUser.setUpdatedAt(LocalDateTime.now());
+        userRepository.findByIdOptional(id).get().setUpdatedAt(LocalDateTime.now());
         
-        userRepository.createOrUpdate(existingUser);
-        return result(Response.Status.OK, mapper.toUserResponse(existingUser));
+        userRepository.createOrUpdate(userRepository.findByIdOptional(id).get());
+        return result(Response.Status.OK, mapper.toUserResponse(userRepository.findByIdOptional(id).get()));
     }
 
     /**
@@ -136,8 +128,7 @@ public class UserService {
     @Deprecated
     @Transactional
     public Response createOrUpdateUser(Long id, UserRequest userRequest) {
-        Optional<User> existingUser = userRepository.findByIdOptional(id);
-        boolean isCreating = existingUser.isEmpty();
+        boolean isCreating = userRepository.findByIdOptional(id).isEmpty();
 
         if (isCreating) {
             if (isUsernameOrEmailTaken(userRequest.getUsername(), userRequest.getEmail(), null)) {
@@ -146,13 +137,12 @@ public class UserService {
                         .build();
             }
 
-            User entity = mapper.toUserWithId(userRequest, id);
             LocalDateTime now = LocalDateTime.now();
-            entity.setCreatedAt(now);
-            entity.setUpdatedAt(now);
+            mapper.toUserWithId(userRequest, id).setCreatedAt(now);
+            mapper.toUserWithId(userRequest, id).setUpdatedAt(now);
             
-            userRepository.createOrUpdate(entity);
-            return result(Response.Status.CREATED, mapper.toUserResponse(entity));
+            userRepository.createOrUpdate(mapper.toUserWithId(userRequest, id));
+            return result(Response.Status.CREATED, mapper.toUserResponse(mapper.toUserWithId(userRequest, id)));
         } else {
             if (isUsernameOrEmailTaken(userRequest.getUsername(), userRequest.getEmail(), id)) {
                 return Response.status(Response.Status.CONFLICT)
@@ -160,12 +150,11 @@ public class UserService {
                         .build();
             }
 
-            User entity = mapper.toUserWithId(userRequest, id);
-            entity.setUpdatedAt(LocalDateTime.now());
-            entity.setCreatedAt(existingUser.get().getCreatedAt()); // Keep original createdAt
+            mapper.toUserWithId(userRequest, id).setUpdatedAt(LocalDateTime.now());
+            mapper.toUserWithId(userRequest, id).setCreatedAt(userRepository.findByIdOptional(id).get().getCreatedAt()); // Keep original createdAt
             
-            userRepository.createOrUpdate(entity);
-            return result(Response.Status.OK, mapper.toUserResponse(entity));
+            userRepository.createOrUpdate(mapper.toUserWithId(userRequest, id));
+            return result(Response.Status.OK, mapper.toUserResponse(mapper.toUserWithId(userRequest, id)));
         }
     }
 
@@ -178,13 +167,11 @@ public class UserService {
     }
 
     private boolean isUsernameOrEmailTaken(String username, String email, Long excludeId) {
-        Optional<User> userByUsername = userRepository.findByUsername(username);
-        if (userByUsername.isPresent() && !userByUsername.get().getId().equals(excludeId)) {
+        if (userRepository.findByUsername(username).isPresent() && !userRepository.findByUsername(username).get().getId().equals(excludeId)) {
             return true;
         }
 
-        Optional<User> userByEmail = userRepository.findByEmail(email);
-        return userByEmail.isPresent() && !userByEmail.get().getId().equals(excludeId);
+        return userRepository.findByEmail(email).isPresent() && !userRepository.findByEmail(email).get().getId().equals(excludeId);
     }
 
     private Response result (Response.Status status, Object entity) {
